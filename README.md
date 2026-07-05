@@ -3,6 +3,11 @@
 A single-user, **voice-first** personal expense tracker. Speak a spending in a
 couple of taps and it's saved as `uncategorized`; tidy up the category later.
 
+**Live app:** https://expenses-app-7007d.web.app
+
+> Built spec-first — the full design trail (proposal → design decisions → specs →
+> tasks) lives in [`openspec/changes/add-expense-tracker/`](openspec/changes/add-expense-tracker).
+
 - **Web app**: React + Vite + shadcn/ui, installable as a PWA (Android).
 - **Backend**: Firebase — Firestore, Firebase Auth (Google), Cloud Functions,
   Secret Manager.
@@ -30,6 +35,9 @@ and are mirrored in `firestore.rules`. Change categories there and nowhere else.
 
 ## Local development
 
+Works out of the box against the local emulators — no real Firebase project or
+secrets needed (committed dev defaults live in `web/.env.development`):
+
 ```bash
 npm install
 npm run build:shared        # web/functions import @expenses/shared's built output
@@ -37,12 +45,17 @@ npm run build:shared        # web/functions import @expenses/shared's built outp
 # Terminal 1 — emulators (Firestore, Functions, Auth, UI on :4000)
 npm run emulators
 
-# Terminal 2 — web app against the emulators (web/.env.local sets VITE_USE_EMULATORS=true)
+# Terminal 2 — web app against the emulators
 npm run dev
 ```
 
 Open the printed Vite URL. The Auth emulator lets you "sign in with Google"
-using a synthetic account, so the full flow works with no real project.
+using a synthetic account, and data lives in the emulator, so the full flow —
+manual entry, voice capture, month navigation, categorize-later — works with no
+real project and no live data.
+
+> To run against a real project instead, see *Connecting a real Firebase project*
+> below and set `VITE_USE_EMULATORS=false` in `web/.env.local`.
 
 ## Tests
 
