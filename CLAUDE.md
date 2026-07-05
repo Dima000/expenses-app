@@ -7,8 +7,11 @@
 - Branch naming: `feat/…`, `fix/…`, `chore/…` (no Jira project on this repo).
 
 ## Commits & PRs
-- Commit messages start with a Jira ID, `nojira`, or `chore` (global convention).
-- Do not mention AI/Claude in commit messages or PR descriptions.
+- Track work via GitHub Issues / the GitHub Project. Use conventional-commit
+  prefixes (`feat:`, `fix:`, `chore:`, `docs:`, …) and reference the relevant
+  GitHub issue when one exists (e.g. `fix: … (#12)`).
+- Claude attribution is welcome: commits may include a `Co-Authored-By: Claude`
+  trailer and PR descriptions may mention Claude.
 
 ## CI
 - Keep CI lean and fast: install + build (typecheck) + domain unit tests.
