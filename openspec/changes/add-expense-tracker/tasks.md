@@ -2,7 +2,7 @@
 
 - [x] 1.1 Scaffold the repo: Vite + React + TypeScript app and a `functions/` workspace
 - [x] 1.2 Add and configure Tailwind + shadcn/ui in the web app
-- [ ] 1.3 Create the Firebase project; enable Firestore, Firebase Auth (Google provider), Cloud Functions, and Secret Manager _(blocked: needs your Firebase account + console; config/`.firebaserc` scaffolded and README documents the steps)_
+- [x] 1.3 Create the Firebase project; enable Firestore, Firebase Auth (Google provider), Cloud Functions, and Secret Manager _(project `expenses-app-7007d` created; Firestore, Auth/Google, Functions, and Secret Manager all enabled and deployed to)_
 - [x] 1.4 Add Firebase client config to the web app and Firebase Admin SDK to `functions/`
 - [x] 1.5 Configure local emulators (Firestore, Functions, Auth) for development
 
@@ -39,7 +39,7 @@
 - [x] 6.2 Build previous/next month navigation defaulting to the current month, with a month label
 - [x] 6.3 Build the month-total card that recomputes on month change and on add/edit/delete
 - [x] 6.4 Build the add/edit spending form (amount, date, category select, comment) and delete-with-confirm
-- [ ] 6.5 Verify cross-device sync: a spending added on one client appears on another for the same owner _(blocked: needs a deployed project + two devices; realtime `onSnapshot` subscription is implemented)_
+- [x] 6.5 Verify cross-device sync: a spending added on one client appears on another for the same owner _(verified on-device against the live deployment)_
 
 ## 7. Categorize-later flow
 
@@ -49,7 +49,7 @@
 ## 8. Installable PWA
 
 - [x] 8.1 Add a web app manifest (name, icons, theme) and register a service worker
-- [ ] 8.2 Verify installability on Android (home-screen icon, full-screen launch) _(blocked: needs a physical Android device + deployed HTTPS URL)_
+- [x] 8.2 Verify installability on Android (home-screen icon, full-screen launch) _(verified on-device: installs with icon, launches full-screen)_
 - [x] 8.3 Make the installed app open into a ready-to-log state to minimize taps
 
 ## 9. Voice capture
@@ -58,7 +58,7 @@
 - [x] 9.2 Implement the deterministic amount-extraction parser (amount out, remainder as comment)
 - [x] 9.3 On capture, save fire-and-forget as `uncategorized` via the client write path with a brief confirmation toast (with undo/edit)
 - [x] 9.4 Handle the ambiguous-amount case: preserve raw text and flag for correction rather than storing a wrong amount
-- [ ] 9.5 End-to-end voice test on Chrome/Android: speak a spending and confirm it appears in the current-month table and in the uncategorized set _(blocked: needs a physical Android device; parser covered by `tests/domain.test.mjs`)_
+- [x] 9.5 End-to-end voice test on Chrome/Android: speak a spending and confirm it appears in the current-month table and in the uncategorized set _(verified on-device on Chrome/Android)_
 
 ## 10. Wrap-up
 

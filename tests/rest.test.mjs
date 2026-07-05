@@ -5,8 +5,8 @@ import { readFileSync } from 'node:fs';
 // Functions emulator serves onRequest at:
 //   http://127.0.0.1:5001/<project>/<region>/<function>
 // The functions emulator sets GCLOUD_PROJECT; fall back for a bare run.
-const PROJECT = process.env.GCLOUD_PROJECT || process.env.GCLOUD_PROJECT_ID || 'expenses-app-7007d';
-const URL = `http://127.0.0.1:5001/${PROJECT}/us-central1/spending`;
+const PROJECT = process.env.GCLOUD_PROJECT || 'demo-expenses';
+const ENDPOINT = `http://127.0.0.1:5001/${PROJECT}/us-central1/spending`;
 
 // Read the local secret from the same (gitignored) file the emulator loads, so
 // no secret literal lives in the repo and the two never drift apart.
@@ -26,7 +26,7 @@ const validPayload = () => ({
 });
 
 function post(body, headers = {}) {
-  return fetch(URL, {
+  return fetch(ENDPOINT, {
     method: 'POST',
     headers: { 'content-type': 'application/json', ...headers },
     body: JSON.stringify(body),
@@ -70,6 +70,6 @@ test('fractional amount is rounded up on write', async () => {
 });
 
 test('non-POST is rejected with 405', async () => {
-  const res = await fetch(URL, { method: 'GET' });
+  const res = await fetch(ENDPOINT, { method: 'GET' });
   assert.equal(res.status, 405);
 });

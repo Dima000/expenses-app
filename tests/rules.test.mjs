@@ -8,7 +8,8 @@ import {
 } from '@firebase/rules-unit-testing';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
-const PROJECT = 'expenses-app-dev';
+// The firestore emulator sets GCLOUD_PROJECT; a `demo-` project needs no login.
+const PROJECT = process.env.GCLOUD_PROJECT || 'demo-expenses';
 const OWNER = 'owner-uid';
 const OTHER = 'intruder-uid';
 

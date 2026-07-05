@@ -15,8 +15,8 @@
     "dev": "npm run dev --workspace web",
     "emulators": "firebase emulators:start",
     "test:domain": "node --test tests/domain.test.mjs",
-    "test:rules": "firebase emulators:exec --only firestore \"node --test tests/rules.test.mjs\"",
-    "test:rest": "firebase emulators:exec --only functions,firestore \"node --test tests/rest.test.mjs\""
+    "test:rules": "firebase emulators:exec --only firestore --project demo-expenses \"node --test tests/rules.test.mjs\"",
+    "test:rest": "firebase emulators:exec --only functions,firestore --project demo-expenses \"node --test tests/rest.test.mjs\""
   },
   "engines": {
     "node": ">=20"
