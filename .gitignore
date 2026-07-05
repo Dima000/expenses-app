@@ -1,0 +1,29 @@
+# Dependencies & build output
+node_modules/
+dist/
+dist-test/
+*.tsbuildinfo
+
+# Environment files with real/project values — regenerate from the .example files.
+*.local
+.env
+.env.local
+.env.production
+web/.env.production
+functions/.env
+functions/.env.*
+!functions/.env.example
+functions/.secret.local
+
+# Local Claude Code settings (per-machine)
+.claude/settings.local.json
+
+# Firebase local artifacts & logs
+.firebase/
+*.log
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# OS
+.DS_Store

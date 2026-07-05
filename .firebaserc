@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "expenses-app-7007d",
+    "expenses-app": "expenses-app-7007d"
+  },
+  "targets": {},
+  "etags": {}
+}

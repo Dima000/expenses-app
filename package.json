@@ -1,0 +1,28 @@
+{
+  "name": "expenses-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Single-user, voice-first expense tracker (React + Vite PWA + Firebase).",
+  "workspaces": [
+    "shared",
+    "functions",
+    "web"
+  ],
+  "scripts": {
+    "build:shared": "npm run build --workspace shared",
+    "build:functions": "esbuild functions/src/index.ts --bundle --platform=node --target=node20 --format=cjs --outfile=functions/dist/index.js --external:firebase-admin --external:firebase-admin/* --external:firebase-functions --external:firebase-functions/*",
+    "build:web": "npm run build --workspace web",
+    "dev": "npm run dev --workspace web",
+    "emulators": "firebase emulators:start",
+    "test:domain": "node --test tests/domain.test.mjs",
+    "test:rules": "firebase emulators:exec --only firestore \"node --test tests/rules.test.mjs\"",
+    "test:rest": "firebase emulators:exec --only functions,firestore \"node --test tests/rest.test.mjs\""
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^3.0.4",
+    "esbuild": "^0.28.1"
+  }
+}
