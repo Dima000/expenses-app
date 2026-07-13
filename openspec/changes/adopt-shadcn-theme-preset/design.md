@@ -56,6 +56,16 @@ through the CLI rather than by fetching JSON ourselves.
   reset, and `body` rule. We review `git diff src/index.css` and re-add any
   dropped lines rather than trusting the tool to keep them.
 
+- **Trim the `--base radix` extras the app doesn't use.** `init --base radix`
+  pulled in `shadcn` (runtime dep, for `@import "shadcn/tailwind.css"`),
+  `radix-ui` (unified package), and `@tabler/icons-react`. Verified none are
+  used: the vendored components import individual `@radix-ui/react-*`, use
+  classic `data-[state=…]` arbitrary variants (not the `data-open` custom
+  variants `shadcn/tailwind.css` provides), have no accordion, and use lucide
+  icons. Removed all three deps + the import, and reset `components.json`
+  `iconLibrary` to `lucide`. Kept `tw-animate-css` (dialog/select/toast
+  reference `animate-in`) and the two `@fontsource-variable/*` font packages.
+
 ## Risks / Trade-offs
 
 - [Preset fails to resolve mid-run] → Clean git tree; `apply` runs after `init`,

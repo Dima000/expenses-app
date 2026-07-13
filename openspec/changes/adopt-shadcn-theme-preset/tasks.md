@@ -17,8 +17,9 @@
       `src/lib/utils.ts` untouched)
 - [x] 2.4 Review `git diff` for `vite.config.ts` / `tsconfig*.json`; ensure the
       `@` alias and `@/*` paths were not duplicated or broken (no changes)
-- [ ] 2.5 Commit `components.json` (+ deps init added: radix-ui, tw-animate-css,
-      shadcn, @tabler/icons-react, @fontsource-variable/{noto,nunito}-sans)
+- [x] 2.5 Committed `components.json` + deps + theme in one commit (init+apply
+      were a single CLI step; deps: radix-ui, tw-animate-css, shadcn,
+      @tabler/icons-react, @fontsource-variable/{noto,nunito}-sans)
 
 ## 3. Apply the preset (colors + fonts)
 
@@ -43,11 +44,17 @@
 
 ## 5. Verify
 
-- [ ] 5.1 `npm run build` (typecheck) passes in `web/`
-- [ ] 5.2 Run the app; eyeball every screen in dark, then light — text contrast,
-      borders, primary/accent buttons, dialogs, toasts, table, select
-- [ ] 5.3 Confirm the new self-hosted fonts render (Noto Sans body); offline
-      works via the existing PWA precache — no fallback expected
+- [x] 5.0 Prune unused `--base radix` extras: removed `shadcn`, `radix-ui`,
+      `@tabler/icons-react` + the `@import "shadcn/tailwind.css"`; reset
+      `iconLibrary` to `lucide`. Kept `tw-animate-css` + `@fontsource-variable/*`
+- [x] 5.1 `npm run build` (typecheck) passes in `web/` (before and after prune;
+      fonts still precached — 28 PWA entries)
+- [x] 5.2 User reviewed the running app (dev server) and confirmed it looks
+      good. Full per-screen eyeball limited by the Google-auth sign-in gate
+      (unrelated to theming); dark-first boot + palette accepted
+- [x] 5.3 Fonts wired: `body`→`--font-sans`→'Noto Sans Variable', woff2 bundled
+      same-origin and precached (verified via build). Live render behind auth
+      gate; token wiring confirmed in `index.css`
 
 ## 6. Ship
 

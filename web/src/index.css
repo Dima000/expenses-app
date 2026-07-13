@@ -1,8 +1,7 @@
 @import 'tailwindcss';
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
-@import "@fontsource-variable/noto-sans";
-@import "@fontsource-variable/nunito-sans";
+@import 'tw-animate-css';
+@import '@fontsource-variable/noto-sans';
+@import '@fontsource-variable/nunito-sans';
 
 /*
  * shadcn/ui (new-york) design tokens as CSS variables. `.dark` on <html>
