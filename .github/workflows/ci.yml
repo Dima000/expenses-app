@@ -8,6 +8,11 @@ on:
     branches: [main]
   pull_request:
 
+# Least-privilege default token: this workflow only reads the repo to build
+# and run tests. Restrict the GITHUB_TOKEN accordingly (see code-scanning).
+permissions:
+  contents: read
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
