@@ -1,17 +1,19 @@
 # Project guidelines
 
 ## Workflow — work via pull requests
-- Do **not** commit directly to `main`. For any change: create a short-lived
-  branch, commit, push, and open a PR. Let CI run on the PR and merge once green.
-  This keeps `main` releasable and avoids redundant CI runs.
-- Branch naming: `feat/…`, `fix/…`, `chore/…` (no Jira project on this repo).
+- Default to PRs: for any change, create a short-lived branch, commit, push,
+  and open a PR. Let CI run on the PR and merge once green. This keeps `main`
+  releasable and avoids redundant CI runs.
+- Exception: small chores (docs, config tweaks, CI/tooling one-liners) may be
+  committed directly to `main` without a PR.
+- Branch naming: `feat/…`, `fix/…`, `chore/…`.
 
 ## Commits & PRs
 - Track work via GitHub Issues / the GitHub Project. Use conventional-commit
   prefixes (`feat:`, `fix:`, `chore:`, `docs:`, …) and reference the relevant
   GitHub issue when one exists (e.g. `fix: … (#12)`).
-- Claude attribution is welcome: commits may include a `Co-Authored-By: Claude`
-  trailer and PR descriptions may mention Claude.
+- Do not add AI/Claude attribution to commit messages or PR descriptions
+  (no `Co-Authored-By: Claude` trailer, no mention of Claude).
 
 ## CI
 - Keep CI lean and fast: install + build (typecheck) + domain unit tests.
