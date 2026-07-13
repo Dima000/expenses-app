@@ -58,6 +58,6 @@
 
 ## 6. Ship
 
-- [ ] 6.1 Push branch; open PR referencing this change; let CI go green
-- [ ] 6.2 Note any preset-added deps/unused tokens in the PR description
-- [ ] 6.3 Merge; archive this OpenSpec change
+- [x] 6.1 Pushed branch; opened PR #11 (CI left running — not blocked on)
+- [x] 6.2 Noted preset-added deps + prune in the PR description
+- [x] 6.3 Archived this OpenSpec change (merge to main handled via PR #11)
