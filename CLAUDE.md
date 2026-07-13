@@ -12,8 +12,8 @@
 - Track work via GitHub Issues / the GitHub Project. Use conventional-commit
   prefixes (`feat:`, `fix:`, `chore:`, `docs:`, …) and reference the relevant
   GitHub issue when one exists (e.g. `fix: … (#12)`).
-- Claude attribution is welcome: commits may include a `Co-Authored-By: Claude`
-  trailer and PR descriptions may mention Claude.
+- Do not add AI/Claude attribution to commit messages or PR descriptions
+  (no `Co-Authored-By: Claude` trailer, no mention of Claude).
 
 ## CI
 - Keep CI lean and fast: install + build (typecheck) + domain unit tests.
