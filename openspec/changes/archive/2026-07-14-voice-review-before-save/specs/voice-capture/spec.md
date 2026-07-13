@@ -1,45 +1,4 @@
-# voice-capture Specification
-
-## Purpose
-TBD - created by archiving change add-expense-tracker. Update Purpose after archive.
-## Requirements
-### Requirement: In-app voice capture
-
-The web app SHALL provide a mic control that uses the browser's speech recognition (Web Speech API) to transcribe the owner's speech into text for creating a spending, without any external service or AI call.
-
-#### Scenario: Owner captures a spending by voice
-
-- **WHEN** the owner activates the mic control and speaks a phrase like "twelve lunch"
-- **THEN** the app transcribes the speech and creates a spending via the client write path
-
-#### Scenario: Mic is hidden where speech recognition is unavailable
-
-- **WHEN** the app runs in a browser that does not support the Web Speech API
-- **THEN** the mic control is hidden or disabled and the manual add form remains available
-
-### Requirement: Amount extraction from transcript
-
-The system SHALL extract the spending amount from the transcribed text using a deterministic "first number wins" parser: the first numeric token (allowing an optional leading currency symbol and an optional decimal part) is the amount, rounded up to a whole unit, and the remaining text (symbol and amount token stripped) is the comment. Numbers SHALL be taken literally (no decimal guessing). No AI/Claude call is required in the initial version.
-
-#### Scenario: Amount and comment are separated
-
-- **WHEN** the transcript is "12 lunch"
-- **THEN** the created spending has amount `12` (whole units) and comment `"lunch"`
-
-#### Scenario: Currency symbol is ignored and decimal is rounded up
-
-- **WHEN** the transcript is "£12.50 lunch"
-- **THEN** the created spending has amount `13` (rounded up) and comment `"lunch"`
-
-#### Scenario: Only the first number is taken as the amount
-
-- **WHEN** the transcript is "1250 rent"
-- **THEN** the created spending has amount `1250` (taken literally, not `12.50`) and comment `"rent"`
-
-#### Scenario: No recognizable number is flagged for correction
-
-- **WHEN** the transcript contains no recognizable number (e.g. "coffee")
-- **THEN** the app does not invent an amount; it saves the entry with the amount flagged as needing correction and the full raw text as the comment, surfaced for a fix in the list
+## MODIFIED Requirements
 
 ### Requirement: Review voice capture before saving
 
@@ -75,6 +34,8 @@ spending SHALL be created only when the owner submits the form, and SHALL carry
 - **WHEN** the app is launched via the "Log by voice" shortcut
 - **THEN** it starts listening automatically and, on transcription, opens the prefilled review form exactly as a tap would
 
+## ADDED Requirements
+
 ### Requirement: Non-interactive ingress persists flagged-for-review entries
 
 Non-interactive server ingress paths SHALL persist a spending directly, without a
@@ -94,4 +55,3 @@ of the web voice review flow.
 
 - **WHEN** the owner opens a flagged (`needsReview`) entry from the list and sets a valid amount
 - **THEN** the entry is updated with the amount and the review flag is cleared
-

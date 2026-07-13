@@ -1,5 +1,11 @@
 import * as React from 'react';
-import { UNCATEGORIZED, validateSpending, type CategoryValue, type Spending } from '@expenses/shared';
+import {
+  UNCATEGORIZED,
+  validateSpending,
+  type CategoryValue,
+  type Spending,
+  type SpendingSource,
+} from '@expenses/shared';
 import {
   Dialog,
   DialogContent,
@@ -23,10 +29,22 @@ interface SpendingFormProps {
   editing?: Spending | null;
   /** Prefill date for new entries (defaults to today). */
   defaultDate?: string;
+  /** Seed amount/comment/category for a new entry (add mode only, e.g. from voice). */
+  prefill?: { amount?: string; comment?: string; category?: CategoryValue } | null;
+  /** Source recorded when creating a new entry (defaults to 'web'). */
+  addSource?: SpendingSource;
 }
 
 /** Add/edit spending form. Create and edit share one validated form. */
-export function SpendingForm({ open, onOpenChange, ownerUid, editing, defaultDate }: SpendingFormProps) {
+export function SpendingForm({
+  open,
+  onOpenChange,
+  ownerUid,
+  editing,
+  defaultDate,
+  prefill,
+  addSource = 'web',
+}: SpendingFormProps) {
   const [amount, setAmount] = React.useState('');
   const [date, setDate] = React.useState(todayString());
   const [category, setCategory] = React.useState<CategoryValue>(UNCATEGORIZED);
@@ -44,12 +62,12 @@ export function SpendingForm({ open, onOpenChange, ownerUid, editing, defaultDat
       setCategory(editing.category);
       setComment(editing.comment ?? '');
     } else {
-      setAmount('');
+      setAmount(prefill?.amount ?? '');
       setDate(defaultDate ?? todayString());
-      setCategory(UNCATEGORIZED);
-      setComment('');
+      setCategory(prefill?.category ?? UNCATEGORIZED);
+      setComment(prefill?.comment ?? '');
     }
-  }, [open, editing, defaultDate]);
+  }, [open, editing, defaultDate, prefill]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -71,7 +89,7 @@ export function SpendingForm({ open, onOpenChange, ownerUid, editing, defaultDat
       if (editing) {
         await updateSpending(editing.id, { ...input, needsReview: false });
       } else {
-        await createSpending(input, ownerUid, 'web');
+        await createSpending(input, ownerUid, addSource);
       }
       onOpenChange(false);
     } catch (err) {

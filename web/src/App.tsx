@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { UNCATEGORIZED, type Spending } from '@expenses/shared';
+import { UNCATEGORIZED, type Spending, type SpendingSource } from '@expenses/shared';
 import { LogOut, Plus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { subscribeToMonth } from '@/lib/spendings';
@@ -9,7 +9,7 @@ import { MonthNav } from '@/components/MonthNav';
 import { TotalCard } from '@/components/TotalCard';
 import { SpendingTable } from '@/components/SpendingTable';
 import { SpendingForm } from '@/components/SpendingForm';
-import { VoiceButton } from '@/components/VoiceButton';
+import { VoiceButton, type VoiceCapture } from '@/components/VoiceButton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
@@ -25,6 +25,10 @@ export default function App() {
   const [onlyUncategorized, setOnlyUncategorized] = React.useState(false);
   const [formOpen, setFormOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Spending | null>(null);
+  // Prefill + source for a NEW entry (blank + 'web' for the + button; parsed
+  // values + 'voice' when opened for review from the mic).
+  const [addPrefill, setAddPrefill] = React.useState<VoiceCapture | null>(null);
+  const [addSource, setAddSource] = React.useState<SpendingSource>('web');
 
   // Live subscription to the selected month for the signed-in owner.
   React.useEffect(() => {
@@ -53,8 +57,17 @@ export default function App() {
   }, []);
   const openAdd = () => {
     setEditing(null);
+    setAddPrefill(null);
+    setAddSource('web');
     setFormOpen(true);
   };
+  // Voice capture opens the add form prefilled for review — nothing is saved yet.
+  const openVoiceReview = React.useCallback((capture: VoiceCapture) => {
+    setEditing(null);
+    setAddPrefill(capture);
+    setAddSource('voice');
+    setFormOpen(true);
+  }, []);
 
   if (loading) {
     return <div className="flex min-h-dvh items-center justify-center text-muted-foreground">Loading…</div>;
@@ -106,7 +119,7 @@ export default function App() {
         >
           <Plus className="mr-1" /> Add
         </Button>
-        <VoiceButton ownerUid={user.uid} onEditRequest={openEdit} autoStart={launchedForVoice()} />
+        <VoiceButton onCapture={openVoiceReview} autoStart={launchedForVoice()} />
       </div>
 
       <SpendingForm
@@ -114,6 +127,8 @@ export default function App() {
         onOpenChange={setFormOpen}
         ownerUid={user.uid}
         editing={editing}
+        prefill={addPrefill}
+        addSource={addSource}
       />
     </div>
   );
