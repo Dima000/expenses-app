@@ -21,7 +21,9 @@ function launchedForVoice(): boolean {
 export default function App() {
   const { user, loading, signIn, logOut } = useAuth();
   const [month, setMonth] = React.useState(currentMonthKey);
-  const [spendings, setSpendings] = React.useState<Spending[]>([]);
+  // `null` = the first snapshot for the current (user, month) hasn't arrived yet;
+  // this drives the loading state so the page doesn't flash empty and jump.
+  const [spendings, setSpendings] = React.useState<Spending[] | null>(null);
   const [onlyUncategorized, setOnlyUncategorized] = React.useState(false);
   const [formOpen, setFormOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Spending | null>(null);
@@ -30,26 +32,26 @@ export default function App() {
   const [addPrefill, setAddPrefill] = React.useState<VoiceCapture | null>(null);
   const [addSource, setAddSource] = React.useState<SpendingSource>('web');
 
-  // Live subscription to the selected month for the signed-in owner.
+  // Live subscription to the selected month for the signed-in owner. Reset to
+  // the loading state (`null`) whenever the owner or month changes.
   React.useEffect(() => {
-    if (!user) {
-      setSpendings([]);
-      return;
-    }
+    setSpendings(null);
+    if (!user) return;
     return subscribeToMonth(user.uid, month, setSpendings);
   }, [user, month]);
 
+  const spendingsLoading = spendings === null;
   const uncategorizedCount = React.useMemo(
-    () => spendings.filter((s) => s.category === UNCATEGORIZED).length,
+    () => (spendings ?? []).filter((s) => s.category === UNCATEGORIZED).length,
     [spendings],
   );
   const total = React.useMemo(
-    () => spendings.reduce((sum, s) => sum + (s.amount || 0), 0),
+    () => (spendings ?? []).reduce((sum, s) => sum + (s.amount || 0), 0),
     [spendings],
   );
   const visible = onlyUncategorized
-    ? spendings.filter((s) => s.category === UNCATEGORIZED)
-    : spendings;
+    ? (spendings ?? []).filter((s) => s.category === UNCATEGORIZED)
+    : spendings ?? [];
 
   const openEdit = React.useCallback((s: Spending) => {
     setEditing(s);
@@ -88,7 +90,7 @@ export default function App() {
       </div>
 
       <div className="mb-4">
-        <TotalCard total={total} count={spendings.length} />
+        <TotalCard total={total} count={spendings?.length ?? 0} />
       </div>
 
       <div className="mb-3 flex items-center gap-2">
@@ -107,7 +109,7 @@ export default function App() {
         </Button>
       </div>
 
-      <SpendingTable spendings={visible} onEdit={openEdit} />
+      <SpendingTable spendings={visible} onEdit={openEdit} loading={spendingsLoading} />
 
       {/* Floating capture controls — the app opens ready to log (8.3). */}
       <div className="fixed inset-x-0 bottom-6 z-40 mx-auto flex max-w-2xl items-center justify-end gap-3 px-4">

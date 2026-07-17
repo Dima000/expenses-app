@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { UNCATEGORIZED, type CategoryValue, type Spending } from '@expenses/shared';
-import { Pencil, Trash2, AlertTriangle } from 'lucide-react';
+import { UNCATEGORIZED, shortDate, type CategoryValue, type Spending } from '@expenses/shared';
+import { Pencil, Trash2, AlertTriangle, ArrowUpDown, ArrowDownAZ } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -25,12 +25,19 @@ import { assignCategory, deleteSpending } from '@/lib/spendings';
 interface SpendingTableProps {
   spendings: Spending[];
   onEdit: (spending: Spending) => void;
+  /** True while the first month snapshot is still pending. */
+  loading?: boolean;
 }
 
-/** Current-month table: amount, date, category, comment — latest on top. */
-export function SpendingTable({ spendings, onEdit }: SpendingTableProps) {
+/**
+ * Current-month table: date, amount, comment, category — latest on top.
+ * `spendings` arrives ordered date-desc; sorting by category is a reversible
+ * client-side view that falls back to that default when cleared.
+ */
+export function SpendingTable({ spendings, onEdit, loading }: SpendingTableProps) {
   const [pendingDelete, setPendingDelete] = React.useState<Spending | null>(null);
   const [deleting, setDeleting] = React.useState(false);
+  const [sortByCategory, setSortByCategory] = React.useState(false);
 
   async function confirmDelete() {
     if (!pendingDelete) return;
@@ -41,6 +48,24 @@ export function SpendingTable({ spendings, onEdit }: SpendingTableProps) {
     } finally {
       setDeleting(false);
     }
+  }
+
+  // Category sort keeps the incoming date-desc order as a stable tiebreak, so
+  // rows stay newest-first within each category. Clearing it returns to default.
+  const rows = React.useMemo(() => {
+    if (!sortByCategory) return spendings;
+    return spendings
+      .map((s, i) => ({ s, i }))
+      .sort((a, b) => a.s.category.localeCompare(b.s.category) || a.i - b.i)
+      .map(({ s }) => s);
+  }, [spendings, sortByCategory]);
+
+  if (loading) {
+    return (
+      <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">
+        Loading…
+      </div>
+    );
   }
 
   if (spendings.length === 0) {
@@ -56,16 +81,38 @@ export function SpendingTable({ spendings, onEdit }: SpendingTableProps) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-20 text-right">Amount</TableHead>
-            <TableHead className="w-28">Date</TableHead>
-            <TableHead>Category</TableHead>
+            <TableHead className="w-24">Date</TableHead>
+            <TableHead className="w-16 text-right">Amount</TableHead>
             <TableHead>Comment</TableHead>
+            <TableHead>
+              <button
+                type="button"
+                className={
+                  sortByCategory
+                    ? 'inline-flex items-center gap-1 font-medium text-foreground'
+                    : 'inline-flex items-center gap-1 hover:text-foreground'
+                }
+                onClick={() => setSortByCategory((v) => !v)}
+                aria-pressed={sortByCategory}
+                title={sortByCategory ? 'Sorted by category — click to clear' : 'Sort by category'}
+              >
+                Category
+                {sortByCategory ? (
+                  <ArrowDownAZ className="size-3.5 text-primary" />
+                ) : (
+                  <ArrowUpDown className="size-3.5 opacity-40" />
+                )}
+              </button>
+            </TableHead>
             <TableHead className="w-20 text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {spendings.map((s) => (
+          {rows.map((s) => (
             <TableRow key={s.id}>
+              <TableCell className="tabular-nums text-muted-foreground">
+                {shortDate(s.date)}
+              </TableCell>
               <TableCell className="text-right font-medium tabular-nums">
                 {s.needsReview ? (
                   <span className="inline-flex items-center gap-1 text-amber-500">
@@ -75,7 +122,9 @@ export function SpendingTable({ spendings, onEdit }: SpendingTableProps) {
                   s.amount.toLocaleString()
                 )}
               </TableCell>
-              <TableCell className="tabular-nums text-muted-foreground">{s.date}</TableCell>
+              <TableCell className="max-w-[16rem] truncate text-muted-foreground">
+                {s.comment}
+              </TableCell>
               <TableCell>
                 {s.category === UNCATEGORIZED ? (
                   <div className="w-40">
@@ -90,9 +139,6 @@ export function SpendingTable({ spendings, onEdit }: SpendingTableProps) {
                 ) : (
                   <Badge variant="secondary">{s.category}</Badge>
                 )}
-              </TableCell>
-              <TableCell className="max-w-[16rem] truncate text-muted-foreground">
-                {s.comment}
               </TableCell>
               <TableCell>
                 <div className="flex justify-end gap-1">
