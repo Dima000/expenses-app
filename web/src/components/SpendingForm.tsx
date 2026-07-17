@@ -1,6 +1,7 @@
 import * as React from 'react';
 import {
   UNCATEGORIZED,
+  parseAmountFromTranscript,
   validateSpending,
   type CategoryValue,
   type Spending,
@@ -45,10 +46,13 @@ export function SpendingForm({
   prefill,
   addSource = 'web',
 }: SpendingFormProps) {
+  // Edit mode binds discrete amount/comment fields; add mode uses one free-text
+  // field (`entry`) that is parsed into amount + comment on submit.
   const [amount, setAmount] = React.useState('');
+  const [comment, setComment] = React.useState('');
+  const [entry, setEntry] = React.useState('');
   const [date, setDate] = React.useState(todayString());
   const [category, setCategory] = React.useState<CategoryValue>(UNCATEGORIZED);
-  const [comment, setComment] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
 
@@ -58,26 +62,37 @@ export function SpendingForm({
     setError(null);
     if (editing) {
       setAmount(String(editing.amount));
+      setComment(editing.comment ?? '');
       setDate(editing.date);
       setCategory(editing.category);
-      setComment(editing.comment ?? '');
     } else {
-      setAmount(prefill?.amount ?? '');
+      // Seed the free-text field from any prefill (e.g. voice: "12 lunch").
+      setEntry([prefill?.amount, prefill?.comment].filter(Boolean).join(' '));
       setDate(defaultDate ?? todayString());
       setCategory(prefill?.category ?? UNCATEGORIZED);
-      setComment(prefill?.comment ?? '');
     }
   }, [open, editing, defaultDate, prefill]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const parsed = Number(amount);
+    let inputAmount: number;
+    let inputComment: string;
+    if (editing) {
+      const parsed = Number(amount);
+      inputAmount = Number.isFinite(parsed) ? Math.ceil(parsed) : NaN;
+      inputComment = comment.trim();
+    } else {
+      // Add mode: first number in the free text is the amount, rest is comment.
+      const parsed = parseAmountFromTranscript(entry);
+      inputAmount = parsed.amount ?? NaN;
+      inputComment = parsed.comment;
+    }
     const input = {
-      amount: Number.isFinite(parsed) ? Math.ceil(parsed) : NaN,
+      amount: inputAmount,
       date,
       category,
-      comment: comment.trim(),
+      comment: inputComment,
     };
     const { ok, errors } = validateSpending(input);
     if (!ok) {
@@ -109,20 +124,47 @@ export function SpendingForm({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="amount">Amount</Label>
-            <Input
-              id="amount"
-              type="number"
-              inputMode="decimal"
-              min="0"
-              step="1"
-              placeholder="0"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              autoFocus
-            />
-          </div>
+          {editing ? (
+            <>
+              <div className="grid gap-2">
+                <Label htmlFor="amount">Amount</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="1"
+                  placeholder="0"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="comment">Comment</Label>
+                <Input
+                  id="comment"
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="Optional note"
+                />
+              </div>
+            </>
+          ) : (
+            <div className="grid gap-2">
+              <Label htmlFor="entry">Amount & note</Label>
+              <Input
+                id="entry"
+                value={entry}
+                onChange={(e) => setEntry(e.target.value)}
+                placeholder="e.g. 12 lunch with team"
+                autoFocus
+              />
+              <p className="text-xs text-muted-foreground">
+                The first number becomes the amount; the rest is saved as the comment.
+              </p>
+            </div>
+          )}
           <div className="grid gap-2">
             <Label htmlFor="date">Date</Label>
             <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
@@ -130,15 +172,6 @@ export function SpendingForm({
           <div className="grid gap-2">
             <Label htmlFor="category">Category</Label>
             <CategorySelect id="category" value={category} onChange={setCategory} />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="comment">Comment</Label>
-            <Input
-              id="comment"
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              placeholder="Optional note"
-            />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <DialogFooter>
