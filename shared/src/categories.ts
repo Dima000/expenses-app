@@ -39,8 +39,11 @@ export function slugify(name: string): string {
   return name
     .toLowerCase()
     .trim()
+    // Collapse every run of non-alphanumerics to a single '-', so the trim
+    // below only ever sees one leading/trailing '-' — a linear pattern with no
+    // polynomial backtracking (avoids the ReDoS shape of `/^-+|-+$/`).
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/^-|-$/g, '');
 }
 
 /** Fold a term or name to its canonical form for case-insensitive equality. */
