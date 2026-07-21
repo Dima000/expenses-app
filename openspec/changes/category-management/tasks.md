@@ -39,9 +39,9 @@
 
 ## 7. Firestore rules
 
-- [ ] 7.1 In `firestore.rules`, remove `allowedCategories()` and the `data.category in ...` check on `spendings` (category may be any string).
-- [ ] 7.2 Add owner-scoped read/write rules for the new `users/{uid}` document; keep the catch-all deny for everything else.
-- [ ] 7.3 Update `tests/rules.test.mjs` to cover: owner can read/write their own categories doc, another identity cannot, and a spending with an arbitrary category string is accepted.
+- [x] 7.1 In `firestore.rules`, remove `allowedCategories()` and the `data.category in ...` check on `spendings` (category may be any string).
+- [x] 7.2 Add owner-scoped read/write rules for the new `users/{uid}` document; keep the catch-all deny for everything else.
+- [x] 7.3 Update `tests/rules.test.mjs` to cover: owner can read/write their own categories doc, another identity cannot, and a spending with an arbitrary category string is accepted.
 
 ## 8. Verify
 
