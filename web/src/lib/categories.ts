@@ -2,9 +2,11 @@ import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import {
   DEFAULT_CATEGORIES,
   USERS_COLLECTION,
-  findCategoryByName,
-  findCategoryOwningTerm,
-  slugify,
+  withCategoryAdded,
+  withCategoryRemoved,
+  withCategoryRenamed,
+  withTermAdded,
+  withTermRemoved,
   type Category,
 } from '@expenses/shared';
 import { db } from './firebase';
@@ -14,16 +16,6 @@ const userDoc = (ownerUid: string) => doc(db, USERS_COLLECTION, ownerUid);
 /** Persist the full category set (single-doc write; merges to preserve other user fields). */
 async function writeCategories(ownerUid: string, categories: Category[]): Promise<void> {
   await setDoc(userDoc(ownerUid), { categories }, { merge: true });
-}
-
-/** A slug id not already used by another category (disambiguates collisions). */
-function uniqueId(base: string, categories: readonly Category[]): string {
-  const seed = base || 'category';
-  const ids = new Set(categories.map((c) => c.id));
-  if (!ids.has(seed)) return seed;
-  let n = 2;
-  while (ids.has(`${seed}-${n}`)) n++;
-  return `${seed}-${n}`;
 }
 
 /**
@@ -60,22 +52,17 @@ export function subscribeToCategories(
 
 /**
  * Writers below take the caller's current `categories` (from the live
- * subscription), enforce name/term uniqueness via the shared helpers, then
- * write the whole set. On a conflict they throw an `Error` whose message is
- * shown inline by the manager UI. Term/name uniqueness is app-enforced (not by
- * rules); at single-owner scale a concurrent-edit race is negligible.
+ * subscription), apply a pure shared transform (which enforces name/term
+ * uniqueness and throws an `Error` whose message the manager UI shows inline),
+ * then persist the whole set. Uniqueness is app-enforced (not by rules); at
+ * single-owner scale a concurrent-edit race is negligible.
  */
 export async function addCategory(
   ownerUid: string,
   categories: Category[],
   name: string,
 ): Promise<void> {
-  const trimmed = name.trim();
-  if (!trimmed) throw new Error('Category name is required');
-  const dup = findCategoryByName(trimmed, categories);
-  if (dup) throw new Error(`A category named "${dup.name}" already exists`);
-  const id = uniqueId(slugify(trimmed), categories);
-  await writeCategories(ownerUid, [...categories, { id, name: trimmed, terms: [] }]);
+  await writeCategories(ownerUid, withCategoryAdded(categories, name));
 }
 
 export async function renameCategory(
@@ -84,14 +71,7 @@ export async function renameCategory(
   id: string,
   name: string,
 ): Promise<void> {
-  const trimmed = name.trim();
-  if (!trimmed) throw new Error('Category name is required');
-  const dup = findCategoryByName(trimmed, categories, id);
-  if (dup) throw new Error(`A category named "${dup.name}" already exists`);
-  await writeCategories(
-    ownerUid,
-    categories.map((c) => (c.id === id ? { ...c, name: trimmed } : c)),
-  );
+  await writeCategories(ownerUid, withCategoryRenamed(categories, id, name));
 }
 
 /** Non-destructive: existing spendings keep their stored id and render "Uncategorised". */
@@ -100,10 +80,7 @@ export async function removeCategory(
   categories: Category[],
   id: string,
 ): Promise<void> {
-  await writeCategories(
-    ownerUid,
-    categories.filter((c) => c.id !== id),
-  );
+  await writeCategories(ownerUid, withCategoryRemoved(categories, id));
 }
 
 export async function addTerm(
@@ -112,17 +89,7 @@ export async function addTerm(
   id: string,
   term: string,
 ): Promise<void> {
-  const trimmed = term.trim();
-  if (!trimmed) throw new Error('Term is required');
-  const owner = findCategoryOwningTerm(trimmed, categories);
-  if (owner) {
-    if (owner.id === id) return; // already on this category — no-op
-    throw new Error(`"${trimmed}" is already in ${owner.name}`);
-  }
-  await writeCategories(
-    ownerUid,
-    categories.map((c) => (c.id === id ? { ...c, terms: [...c.terms, trimmed] } : c)),
-  );
+  await writeCategories(ownerUid, withTermAdded(categories, id, term));
 }
 
 export async function removeTerm(
@@ -131,11 +98,5 @@ export async function removeTerm(
   id: string,
   term: string,
 ): Promise<void> {
-  const lower = term.trim().toLowerCase();
-  await writeCategories(
-    ownerUid,
-    categories.map((c) =>
-      c.id === id ? { ...c, terms: c.terms.filter((t) => t.trim().toLowerCase() !== lower) } : c,
-    ),
-  );
+  await writeCategories(ownerUid, withTermRemoved(categories, id, term));
 }

@@ -21,6 +21,9 @@ import {
   renameCategory,
 } from '@/lib/categories';
 
+const errorMessage = (err: unknown, fallback: string) =>
+  err instanceof Error ? err.message : fallback;
+
 interface CategoriesDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -44,25 +47,12 @@ export function CategoriesDialog({
 }: CategoriesDialogProps) {
   const [newName, setNewName] = React.useState('');
   const [addError, setAddError] = React.useState<string | null>(null);
-  // Draft name per category (seeded from props when the dialog opens).
-  const [nameDrafts, setNameDrafts] = React.useState<Record<string, string>>({});
-  const [termDrafts, setTermDrafts] = React.useState<Record<string, string>>({});
-  // One inline error slot per category (rename / add-term / remove).
-  const [rowErrors, setRowErrors] = React.useState<Record<string, string>>({});
 
   React.useEffect(() => {
     if (!open) return;
     setNewName('');
     setAddError(null);
-    setTermDrafts({});
-    setRowErrors({});
-    setNameDrafts(Object.fromEntries(categories.map((c) => [c.id, c.name])));
-    // Seed once per open; live edits below manage the drafts thereafter.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
-
-  const setRowError = (id: string, msg: string | null) =>
-    setRowErrors((e) => ({ ...e, [id]: msg ?? '' }));
 
   async function handleAdd() {
     setAddError(null);
@@ -70,47 +60,7 @@ export function CategoriesDialog({
       await addCategory(ownerUid, categories, newName);
       setNewName('');
     } catch (err) {
-      setAddError(err instanceof Error ? err.message : 'Failed to add category');
-    }
-  }
-
-  async function handleRename(cat: Category) {
-    const next = (nameDrafts[cat.id] ?? '').trim();
-    if (!next || next === cat.name) return;
-    setRowError(cat.id, null);
-    try {
-      await renameCategory(ownerUid, categories, cat.id, next);
-    } catch (err) {
-      setRowError(cat.id, err instanceof Error ? err.message : 'Failed to rename');
-      setNameDrafts((d) => ({ ...d, [cat.id]: cat.name })); // revert the draft
-    }
-  }
-
-  async function handleRemove(cat: Category) {
-    setRowError(cat.id, null);
-    try {
-      await removeCategory(ownerUid, categories, cat.id);
-    } catch (err) {
-      setRowError(cat.id, err instanceof Error ? err.message : 'Failed to remove');
-    }
-  }
-
-  async function handleAddTerm(cat: Category) {
-    setRowError(cat.id, null);
-    try {
-      await addTerm(ownerUid, categories, cat.id, termDrafts[cat.id] ?? '');
-      setTermDrafts((d) => ({ ...d, [cat.id]: '' }));
-    } catch (err) {
-      setRowError(cat.id, err instanceof Error ? err.message : 'Failed to add term');
-    }
-  }
-
-  async function handleRemoveTerm(cat: Category, term: string) {
-    setRowError(cat.id, null);
-    try {
-      await removeTerm(ownerUid, categories, cat.id, term);
-    } catch (err) {
-      setRowError(cat.id, err instanceof Error ? err.message : 'Failed to remove term');
+      setAddError(errorMessage(err, 'Failed to add category'));
     }
   }
 
@@ -156,83 +106,12 @@ export function CategoriesDialog({
             </p>
           )}
           {categories.map((cat) => (
-            <div key={cat.id} className="grid gap-2 rounded-lg border p-3">
-              <div className="flex items-center gap-2">
-                <Input
-                  aria-label={`Rename ${cat.name}`}
-                  value={nameDrafts[cat.id] ?? cat.name}
-                  onChange={(e) =>
-                    setNameDrafts((d) => ({ ...d, [cat.id]: e.target.value }))
-                  }
-                  onBlur={() => handleRename(cat)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      void handleRename(cat);
-                    }
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`Remove ${cat.name}`}
-                  onClick={() => handleRemove(cat)}
-                >
-                  <Trash2 />
-                </Button>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-1.5">
-                {cat.terms.map((term) => (
-                  <Badge key={term} variant="secondary" className="gap-1 pr-1">
-                    {term}
-                    <button
-                      type="button"
-                      aria-label={`Remove term ${term}`}
-                      className="rounded-sm opacity-70 hover:opacity-100"
-                      onClick={() => handleRemoveTerm(cat, term)}
-                    >
-                      <X className="size-3" />
-                    </button>
-                  </Badge>
-                ))}
-                {cat.terms.length === 0 && (
-                  <span className="text-xs text-muted-foreground">No keywords yet</span>
-                )}
-              </div>
-
-              <div className="flex gap-2">
-                <Input
-                  aria-label={`Add keyword to ${cat.name}`}
-                  value={termDrafts[cat.id] ?? ''}
-                  onChange={(e) =>
-                    setTermDrafts((d) => ({ ...d, [cat.id]: e.target.value }))
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      void handleAddTerm(cat);
-                    }
-                  }}
-                  placeholder="Add a keyword…"
-                  className="h-9"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleAddTerm(cat)}
-                  disabled={!(termDrafts[cat.id] ?? '').trim()}
-                >
-                  Add
-                </Button>
-              </div>
-
-              {rowErrors[cat.id] && (
-                <p className="text-sm text-destructive">{rowErrors[cat.id]}</p>
-              )}
-            </div>
+            <CategoryRow
+              key={cat.id}
+              ownerUid={ownerUid}
+              categories={categories}
+              category={cat}
+            />
           ))}
         </div>
 
@@ -243,5 +122,140 @@ export function CategoriesDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+interface CategoryRowProps {
+  ownerUid: string;
+  /** The full set, needed by the data-layer writers to enforce uniqueness. */
+  categories: Category[];
+  category: Category;
+}
+
+/**
+ * One category's controls, owning its own name/term drafts and inline error.
+ * Mounted per category (keyed by id), so there are no parent-held id-keyed maps
+ * to seed or garbage-collect.
+ */
+function CategoryRow({ ownerUid, categories, category }: CategoryRowProps) {
+  const [nameDraft, setNameDraft] = React.useState(category.name);
+  const [termDraft, setTermDraft] = React.useState('');
+  const [error, setError] = React.useState<string | null>(null);
+
+  // Follow the persisted name if it changes elsewhere (e.g. another device).
+  React.useEffect(() => setNameDraft(category.name), [category.name]);
+
+  async function handleRename() {
+    const next = nameDraft.trim();
+    if (!next || next === category.name) return;
+    setError(null);
+    try {
+      await renameCategory(ownerUid, categories, category.id, next);
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to rename'));
+      setNameDraft(category.name); // revert the draft
+    }
+  }
+
+  async function handleRemove() {
+    setError(null);
+    try {
+      await removeCategory(ownerUid, categories, category.id);
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to remove'));
+    }
+  }
+
+  async function handleAddTerm() {
+    setError(null);
+    try {
+      await addTerm(ownerUid, categories, category.id, termDraft);
+      setTermDraft('');
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to add term'));
+    }
+  }
+
+  async function handleRemoveTerm(term: string) {
+    setError(null);
+    try {
+      await removeTerm(ownerUid, categories, category.id, term);
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to remove term'));
+    }
+  }
+
+  return (
+    <div className="grid gap-2 rounded-lg border p-3">
+      <div className="flex items-center gap-2">
+        <Input
+          aria-label={`Rename ${category.name}`}
+          value={nameDraft}
+          onChange={(e) => setNameDraft(e.target.value)}
+          onBlur={handleRename}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              void handleRename();
+            }
+          }}
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label={`Remove ${category.name}`}
+          onClick={handleRemove}
+        >
+          <Trash2 />
+        </Button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1.5">
+        {category.terms.map((term) => (
+          <Badge key={term} variant="secondary" className="gap-1 pr-1">
+            {term}
+            <button
+              type="button"
+              aria-label={`Remove term ${term}`}
+              className="rounded-sm opacity-70 hover:opacity-100"
+              onClick={() => handleRemoveTerm(term)}
+            >
+              <X className="size-3" />
+            </button>
+          </Badge>
+        ))}
+        {category.terms.length === 0 && (
+          <span className="text-xs text-muted-foreground">No keywords yet</span>
+        )}
+      </div>
+
+      <div className="flex gap-2">
+        <Input
+          aria-label={`Add keyword to ${category.name}`}
+          value={termDraft}
+          onChange={(e) => setTermDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              void handleAddTerm();
+            }
+          }}
+          placeholder="Add a keyword…"
+          className="h-9"
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleAddTerm}
+          disabled={!termDraft.trim()}
+        >
+          Add
+        </Button>
+      </div>
+
+      {error && <p className="text-sm text-destructive">{error}</p>}
+    </div>
   );
 }

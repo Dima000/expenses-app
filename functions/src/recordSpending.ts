@@ -1,7 +1,7 @@
 import { getFirestore, FieldValue, type Firestore } from 'firebase-admin/firestore';
 import {
+  applyAutoCategory,
   assertValidSpending,
-  categorize,
   roundUpAmount,
   SpendingValidationError,
   SPENDINGS_COLLECTION,
@@ -43,33 +43,28 @@ export async function recordSpending(
 
   const valid = assertValidSpending({ ...input, amount: rounded as number });
 
-  // Auto-categorise identically to the client (design.md: "Auto-categorisation
-  // on every write path"). Only when the caller left the category
-  // `uncategorized` — an explicit pick is never overridden. The categories doc
-  // is read lazily so explicit-category writes cost no extra read.
-  let category = valid.category;
-  let autoMatchedTerm: string | undefined;
-  if (category === UNCATEGORIZED) {
+  // Auto-categorise identically to the client via the shared policy (design.md:
+  // "Auto-categorisation on every write path"). The categories doc is read
+  // lazily — only when the caller left the category `uncategorized` — so
+  // explicit-category writes cost no extra read.
+  let toWrite = valid;
+  if (valid.category === UNCATEGORIZED) {
     const userSnap = await db.collection(USERS_COLLECTION).doc(ownerUid).get();
     const categories: Category[] = userSnap.data()?.categories ?? [];
-    const match = categorize(valid.comment, categories);
-    if (match) {
-      category = match.categoryId;
-      autoMatchedTerm = match.matchedTerm;
-    }
+    toWrite = applyAutoCategory(valid, categories);
   }
 
   const ref = await db.collection(SPENDINGS_COLLECTION).add({
-    amount: valid.amount,
-    date: valid.date,
-    comment: valid.comment,
-    category,
-    needsReview: valid.needsReview ?? false,
+    amount: toWrite.amount,
+    date: toWrite.date,
+    comment: toWrite.comment,
+    category: toWrite.category,
+    needsReview: toWrite.needsReview ?? false,
     ownerUid,
     source,
     // Only persist the matched term when auto-assignment fired — never write
     // `undefined` to Firestore.
-    ...(autoMatchedTerm !== undefined && { autoMatchedTerm }),
+    ...(toWrite.autoMatchedTerm ? { autoMatchedTerm: toWrite.autoMatchedTerm } : {}),
     createdAt: FieldValue.serverTimestamp(),
   });
 

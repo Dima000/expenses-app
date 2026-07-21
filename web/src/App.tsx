@@ -73,9 +73,10 @@ export default function App() {
     () => (spendings ?? []).reduce((sum, s) => sum + (s.amount || 0), 0),
     [spendings],
   );
-  const visible = onlyUncategorized
-    ? (spendings ?? []).filter(isUncategorized)
-    : spendings ?? [];
+  const visible = React.useMemo(
+    () => (onlyUncategorized ? (spendings ?? []).filter(isUncategorized) : spendings ?? []),
+    [spendings, onlyUncategorized, isUncategorized],
+  );
 
   const openEdit = React.useCallback((s: Spending) => {
     setEditing(s);

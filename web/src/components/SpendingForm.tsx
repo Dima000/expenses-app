@@ -1,7 +1,7 @@
 import * as React from 'react';
 import {
   UNCATEGORIZED,
-  categorize,
+  applyAutoCategory,
   parseAmountFromTranscript,
   validateSpending,
   type Category,
@@ -105,15 +105,10 @@ export function SpendingForm({
       setError(errors[0]);
       return;
     }
-    // Save-time auto-categorisation: only when the owner left it uncategorized;
-    // an explicit pick is never overridden. Voice entries flow through here too.
-    let categorized: SpendingInput = input;
-    if (category === UNCATEGORIZED) {
-      const match = categorize(inputComment, categories);
-      if (match) {
-        categorized = { ...input, category: match.categoryId, autoMatchedTerm: match.matchedTerm };
-      }
-    }
+    // Save-time auto-categorisation (shared policy): fills the category only
+    // when left uncategorized, never overriding an explicit pick. Voice entries
+    // flow through here too.
+    const categorized = applyAutoCategory(input, categories);
     setSaving(true);
     try {
       if (editing) {

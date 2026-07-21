@@ -47,14 +47,6 @@ export function SpendingTable({ spendings, onEdit, categories, loading }: Spendi
   const [deleting, setDeleting] = React.useState(false);
   const [sortByCategory, setSortByCategory] = React.useState(false);
 
-  // Display label per row: resolve the stored id → name (with legacy-name
-  // fallback); an unresolved value (uncategorized or a removed category) shows
-  // as "Uncategorised" and offers the inline assign picker.
-  const labelOf = React.useCallback(
-    (s: Spending) => resolveCategory(s.category, categories)?.name ?? 'Uncategorised',
-    [categories],
-  );
-
   async function confirmDelete() {
     if (!pendingDelete) return;
     setDeleting(true);
@@ -70,11 +62,17 @@ export function SpendingTable({ spendings, onEdit, categories, loading }: Spendi
   // rows stay newest-first within each category. Clearing it returns to default.
   const rows = React.useMemo(() => {
     if (!sortByCategory) return spendings;
+    // Decorate with the resolved label once, so the comparison sort doesn't
+    // re-resolve each row on every comparison.
     return spendings
-      .map((s, i) => ({ s, i }))
-      .sort((a, b) => labelOf(a.s).localeCompare(labelOf(b.s)) || a.i - b.i)
+      .map((s, i) => ({
+        s,
+        i,
+        label: resolveCategory(s.category, categories)?.name ?? 'Uncategorised',
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label) || a.i - b.i)
       .map(({ s }) => s);
-  }, [spendings, sortByCategory, labelOf]);
+  }, [spendings, sortByCategory, categories]);
 
   if (loading) {
     return (
@@ -124,7 +122,9 @@ export function SpendingTable({ spendings, onEdit, categories, loading }: Spendi
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((s) => (
+          {rows.map((s) => {
+            const resolved = resolveCategory(s.category, categories);
+            return (
             <TableRow key={s.id}>
               <TableCell className="tabular-nums text-muted-foreground">
                 {shortDate(s.date)}
@@ -142,14 +142,14 @@ export function SpendingTable({ spendings, onEdit, categories, loading }: Spendi
                 {s.comment}
               </TableCell>
               <TableCell>
-                {resolveCategory(s.category, categories) ? (
+                {resolved ? (
                   <Badge
                     variant="secondary"
                     title={
                       s.autoMatchedTerm ? `categorised via '${s.autoMatchedTerm}'` : undefined
                     }
                   >
-                    {labelOf(s)}
+                    {resolved.name}
                   </Badge>
                 ) : (
                   <div className="w-40">
@@ -181,7 +181,8 @@ export function SpendingTable({ spendings, onEdit, categories, loading }: Spendi
                 </div>
               </TableCell>
             </TableRow>
-          ))}
+            );
+          })}
         </TableBody>
       </Table>
 
