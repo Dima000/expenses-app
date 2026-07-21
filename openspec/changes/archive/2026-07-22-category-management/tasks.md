@@ -47,4 +47,4 @@
 
 - [x] 8.1 Run `npm run typecheck` and the domain unit tests (`test:domain`) green.
 - [x] 8.2 Run the rules/rest emulator suites locally (`npm run test:rules`, `npm run test:rest`).
-- [ ] 8.3 Manually verify end-to-end: seed on first run; add/rename/remove categories and terms with uniqueness errors; a comment with one term auto-categorises and shows the tooltip; an ambiguous comment stays uncategorised; removing a category shows its spendings as Uncategorised; renaming updates history without rewrites. _(Interactive owner acceptance step — not run autonomously.)_
+- [x] 8.3 Manually verify end-to-end: seed on first run; add/rename/remove categories and terms with uniqueness errors; a comment with one term auto-categorises and shows the tooltip; an ambiguous comment stays uncategorised; removing a category shows its spendings as Uncategorised; renaming updates history without rewrites. _(Verified on device against the deployed app.)_
