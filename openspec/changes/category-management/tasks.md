@@ -21,21 +21,21 @@
 
 ## 4. Auto-categorisation on all write paths
 
-- [ ] 4.1 In `web/src/components/SpendingForm.tsx`, when the owner leaves the category `uncategorized`, run `categorize(comment, categories)` on save and apply the result (id + `autoMatchedTerm`); never override an explicit pick.
-- [ ] 4.2 Ensure the voice path (`web/src/components/VoiceButton.tsx` → prefilled form) flows through the same save-time categorisation (no separate logic).
-- [ ] 4.3 In `functions/src/recordSpending.ts`, load the owner's categories and run the shared `categorize` so REST writes categorise identically, persisting `autoMatchedTerm` when matched.
+- [x] 4.1 In `web/src/components/SpendingForm.tsx`, when the owner leaves the category `uncategorized`, run `categorize(comment, categories)` on save and apply the result (id + `autoMatchedTerm`); never override an explicit pick.
+- [x] 4.2 Ensure the voice path (`web/src/components/VoiceButton.tsx` → prefilled form) flows through the same save-time categorisation (no separate logic).
+- [x] 4.3 In `functions/src/recordSpending.ts`, load the owner's categories and run the shared `categorize` so REST writes categorise identically, persisting `autoMatchedTerm` when matched.
 
 ## 5. Categories management UI
 
-- [ ] 5.1 Build a categories-manager `Dialog` (mirroring `SpendingForm.tsx`: `Dialog` + `Input`/`Label` grid + `Button` footer) to add/rename/remove categories and add/remove terms, wired to `web/src/lib/categories.ts`.
-- [ ] 5.2 Surface duplicate-name and duplicate-term errors inline (e.g. "'market' is already in Groceries"); no auto-move.
-- [ ] 5.3 Add a header entry point next to sign-out in `web/src/App.tsx` to open the dialog.
+- [x] 5.1 Build a categories-manager `Dialog` (mirroring `SpendingForm.tsx`: `Dialog` + `Input`/`Label` grid + `Button` footer) to add/rename/remove categories and add/remove terms, wired to `web/src/lib/categories.ts`.
+- [x] 5.2 Surface duplicate-name and duplicate-term errors inline (e.g. "'market' is already in Groceries"); no auto-move.
+- [x] 5.3 Add a header entry point next to sign-out in `web/src/App.tsx` to open the dialog.
 
 ## 6. Display: dynamic categories, resolution, tooltip
 
-- [ ] 6.1 Update `web/src/components/CategorySelect.tsx` to map over the live categories (not the shared const), keeping the `uncategorized`/assign-later behaviour.
-- [ ] 6.2 Update `web/src/components/SpendingTable.tsx` to resolve each spending's stored value id → name via the shared resolver, render "Uncategorised" when unresolved, and show a tooltip ("categorised via '<term>'") when `autoMatchedTerm` is present.
-- [ ] 6.3 Verify the existing "only uncategorized" filter/count in `App.tsx` still works against resolved categories (including removed-category rows now counted as uncategorised).
+- [x] 6.1 Update `web/src/components/CategorySelect.tsx` to map over the live categories (not the shared const), keeping the `uncategorized`/assign-later behaviour.
+- [x] 6.2 Update `web/src/components/SpendingTable.tsx` to resolve each spending's stored value id → name via the shared resolver, render "Uncategorised" when unresolved, and show a tooltip ("categorised via '<term>'") when `autoMatchedTerm` is present.
+- [x] 6.3 Verify the existing "only uncategorized" filter/count in `App.tsx` still works against resolved categories (including removed-category rows now counted as uncategorised).
 
 ## 7. Firestore rules
 

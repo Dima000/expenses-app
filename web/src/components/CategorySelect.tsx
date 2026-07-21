@@ -1,4 +1,4 @@
-import { CATEGORIES, UNCATEGORIZED, type CategoryValue } from '@expenses/shared';
+import { UNCATEGORIZED, type Category, type CategoryValue } from '@expenses/shared';
 import {
   Select,
   SelectContent,
@@ -10,16 +10,19 @@ import {
 interface CategorySelectProps {
   value: CategoryValue;
   onChange: (value: CategoryValue) => void;
+  /** The owner's live categories (from the categories subscription). */
+  categories: Category[];
   /** Include the `uncategorized` option (used by the add/edit form, not assign). */
   allowUncategorized?: boolean;
   id?: string;
   placeholder?: string;
 }
 
-/** A single category picker driven off the shared category list. */
+/** A single category picker driven off the owner's live, user-managed categories. */
 export function CategorySelect({
   value,
   onChange,
+  categories,
   allowUncategorized = true,
   id,
   placeholder = 'Select a category',
@@ -31,9 +34,9 @@ export function CategorySelect({
       </SelectTrigger>
       <SelectContent>
         {allowUncategorized && <SelectItem value={UNCATEGORIZED}>Uncategorized</SelectItem>}
-        {CATEGORIES.map((c) => (
-          <SelectItem key={c} value={c}>
-            {c}
+        {categories.map((c) => (
+          <SelectItem key={c.id} value={c.id}>
+            {c.name}
           </SelectItem>
         ))}
       </SelectContent>

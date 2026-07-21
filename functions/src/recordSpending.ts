@@ -1,9 +1,13 @@
 import { getFirestore, FieldValue, type Firestore } from 'firebase-admin/firestore';
 import {
   assertValidSpending,
+  categorize,
   roundUpAmount,
   SpendingValidationError,
   SPENDINGS_COLLECTION,
+  UNCATEGORIZED,
+  USERS_COLLECTION,
+  type Category,
   type SpendingInput,
   type SpendingSource,
 } from '@expenses/shared';
@@ -39,14 +43,33 @@ export async function recordSpending(
 
   const valid = assertValidSpending({ ...input, amount: rounded as number });
 
+  // Auto-categorise identically to the client (design.md: "Auto-categorisation
+  // on every write path"). Only when the caller left the category
+  // `uncategorized` — an explicit pick is never overridden. The categories doc
+  // is read lazily so explicit-category writes cost no extra read.
+  let category = valid.category;
+  let autoMatchedTerm: string | undefined;
+  if (category === UNCATEGORIZED) {
+    const userSnap = await db.collection(USERS_COLLECTION).doc(ownerUid).get();
+    const categories: Category[] = userSnap.data()?.categories ?? [];
+    const match = categorize(valid.comment, categories);
+    if (match) {
+      category = match.categoryId;
+      autoMatchedTerm = match.matchedTerm;
+    }
+  }
+
   const ref = await db.collection(SPENDINGS_COLLECTION).add({
     amount: valid.amount,
     date: valid.date,
     comment: valid.comment,
-    category: valid.category,
+    category,
     needsReview: valid.needsReview ?? false,
     ownerUid,
     source,
+    // Only persist the matched term when auto-assignment fired — never write
+    // `undefined` to Firestore.
+    ...(autoMatchedTerm !== undefined && { autoMatchedTerm }),
     createdAt: FieldValue.serverTimestamp(),
   });
 

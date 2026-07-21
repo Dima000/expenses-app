@@ -1,10 +1,13 @@
 import * as React from 'react';
 import {
   UNCATEGORIZED,
+  categorize,
   parseAmountFromTranscript,
   validateSpending,
+  type Category,
   type CategoryValue,
   type Spending,
+  type SpendingInput,
   type SpendingSource,
 } from '@expenses/shared';
 import {
@@ -26,6 +29,8 @@ interface SpendingFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   ownerUid: string;
+  /** The owner's live categories — for the picker and save-time auto-categorisation. */
+  categories: Category[];
   /** When set, the form edits this spending; otherwise it creates a new one. */
   editing?: Spending | null;
   /** Prefill date for new entries (defaults to today). */
@@ -41,6 +46,7 @@ export function SpendingForm({
   open,
   onOpenChange,
   ownerUid,
+  categories,
   editing,
   defaultDate,
   prefill,
@@ -88,7 +94,7 @@ export function SpendingForm({
       inputAmount = parsed.amount ?? NaN;
       inputComment = parsed.comment;
     }
-    const input = {
+    const input: SpendingInput = {
       amount: inputAmount,
       date,
       category,
@@ -99,12 +105,21 @@ export function SpendingForm({
       setError(errors[0]);
       return;
     }
+    // Save-time auto-categorisation: only when the owner left it uncategorized;
+    // an explicit pick is never overridden. Voice entries flow through here too.
+    let categorized: SpendingInput = input;
+    if (category === UNCATEGORIZED) {
+      const match = categorize(inputComment, categories);
+      if (match) {
+        categorized = { ...input, category: match.categoryId, autoMatchedTerm: match.matchedTerm };
+      }
+    }
     setSaving(true);
     try {
       if (editing) {
-        await updateSpending(editing.id, { ...input, needsReview: false });
+        await updateSpending(editing.id, { ...categorized, needsReview: false });
       } else {
-        await createSpending(input, ownerUid, addSource);
+        await createSpending(categorized, ownerUid, addSource);
       }
       onOpenChange(false);
     } catch (err) {
@@ -171,7 +186,12 @@ export function SpendingForm({
           </div>
           <div className="grid gap-2">
             <Label htmlFor="category">Category</Label>
-            <CategorySelect id="category" value={category} onChange={setCategory} />
+            <CategorySelect
+              id="category"
+              value={category}
+              onChange={setCategory}
+              categories={categories}
+            />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <DialogFooter>

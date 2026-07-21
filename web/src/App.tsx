@@ -1,14 +1,21 @@
 import * as React from 'react';
-import { UNCATEGORIZED, type Spending, type SpendingSource } from '@expenses/shared';
-import { LogOut, Plus } from 'lucide-react';
+import {
+  resolveCategory,
+  type Category,
+  type Spending,
+  type SpendingSource,
+} from '@expenses/shared';
+import { LogOut, Plus, Tags } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { subscribeToMonth } from '@/lib/spendings';
+import { subscribeToCategories } from '@/lib/categories';
 import { currentMonthKey } from '@/lib/date';
 import { SignIn } from '@/components/SignIn';
 import { MonthNav } from '@/components/MonthNav';
 import { TotalCard } from '@/components/TotalCard';
 import { SpendingTable } from '@/components/SpendingTable';
 import { SpendingForm } from '@/components/SpendingForm';
+import { CategoriesDialog } from '@/components/CategoriesDialog';
 import { VoiceButton, type VoiceCapture } from '@/components/VoiceButton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,8 +31,10 @@ export default function App() {
   // `null` = the first snapshot for the current (user, month) hasn't arrived yet;
   // this drives the loading state so the page doesn't flash empty and jump.
   const [spendings, setSpendings] = React.useState<Spending[] | null>(null);
+  const [categories, setCategories] = React.useState<Category[]>([]);
   const [onlyUncategorized, setOnlyUncategorized] = React.useState(false);
   const [formOpen, setFormOpen] = React.useState(false);
+  const [categoriesOpen, setCategoriesOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Spending | null>(null);
   // Prefill + source for a NEW entry (blank + 'web' for the + button; parsed
   // values + 'voice' when opened for review from the mic).
@@ -40,17 +49,32 @@ export default function App() {
     return subscribeToMonth(user.uid, month, setSpendings);
   }, [user, month]);
 
+  // Live subscription to the owner's categories (seeds defaults on first run).
+  React.useEffect(() => {
+    if (!user) {
+      setCategories([]);
+      return;
+    }
+    return subscribeToCategories(user.uid, setCategories);
+  }, [user]);
+
   const spendingsLoading = spendings === null;
+  // A spending counts as uncategorised when its stored value doesn't resolve to
+  // a current category — this includes rows pointing at a removed category.
+  const isUncategorized = React.useCallback(
+    (s: Spending) => resolveCategory(s.category, categories) === null,
+    [categories],
+  );
   const uncategorizedCount = React.useMemo(
-    () => (spendings ?? []).filter((s) => s.category === UNCATEGORIZED).length,
-    [spendings],
+    () => (spendings ?? []).filter(isUncategorized).length,
+    [spendings, isUncategorized],
   );
   const total = React.useMemo(
     () => (spendings ?? []).reduce((sum, s) => sum + (s.amount || 0), 0),
     [spendings],
   );
   const visible = onlyUncategorized
-    ? (spendings ?? []).filter((s) => s.category === UNCATEGORIZED)
+    ? (spendings ?? []).filter(isUncategorized)
     : spendings ?? [];
 
   const openEdit = React.useCallback((s: Spending) => {
@@ -80,9 +104,19 @@ export default function App() {
     <div className="mx-auto min-h-dvh max-w-2xl px-4 pb-28 pt-6">
       <header className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Expenses</h1>
-        <Button variant="ghost" size="icon" aria-label="Sign out" onClick={logOut}>
-          <LogOut />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Manage categories"
+            onClick={() => setCategoriesOpen(true)}
+          >
+            <Tags />
+          </Button>
+          <Button variant="ghost" size="icon" aria-label="Sign out" onClick={logOut}>
+            <LogOut />
+          </Button>
+        </div>
       </header>
 
       <div className="mb-4">
@@ -109,7 +143,12 @@ export default function App() {
         </Button>
       </div>
 
-      <SpendingTable spendings={visible} onEdit={openEdit} loading={spendingsLoading} />
+      <SpendingTable
+        spendings={visible}
+        onEdit={openEdit}
+        categories={categories}
+        loading={spendingsLoading}
+      />
 
       {/* Floating capture controls — the app opens ready to log (8.3). */}
       <div className="fixed inset-x-0 bottom-6 z-40 mx-auto flex max-w-2xl items-center justify-end gap-3 px-4">
@@ -128,9 +167,17 @@ export default function App() {
         open={formOpen}
         onOpenChange={setFormOpen}
         ownerUid={user.uid}
+        categories={categories}
         editing={editing}
         prefill={addPrefill}
         addSource={addSource}
+      />
+
+      <CategoriesDialog
+        open={categoriesOpen}
+        onOpenChange={setCategoriesOpen}
+        ownerUid={user.uid}
+        categories={categories}
       />
     </div>
   );
