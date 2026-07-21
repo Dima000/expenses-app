@@ -1,8 +1,5 @@
-# spending-tracking Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change add-expense-tracker. Update Purpose after archive.
-## Requirements
 ### Requirement: Spending record model
 
 The system SHALL represent each spending as a record containing an amount (positive integer in whole currency units), a spending date, a free-text comment, and a category. The category SHALL be either a reference to one of the owner's managed categories or the reserved value `uncategorized`. A category reference SHALL be stored as a stable category identifier so that renaming a category does not require rewriting spendings, and so that a reference to a removed category is presented as "Uncategorised" rather than failing. Each record SHALL also carry a server-assigned creation timestamp and belong to the single owning user. When a category was assigned automatically by term matching, the record SHALL also carry the matched term.
@@ -37,6 +34,8 @@ The system SHALL represent each spending as a record containing an amount (posit
 - **WHEN** a spending is submitted without an amount or without a category
 - **THEN** the system rejects the write and returns a validation error identifying the missing field
 
+## ADDED Requirements
+
 ### Requirement: Automatic categorisation by term matching
 
 When a spending is saved on any input path (web form, voice, or REST), the system SHALL attempt to categorise it from its comment using the owner's category terms. Matching SHALL be case-insensitive and SHALL match whole words only (a term SHALL NOT match inside a larger word). The system SHALL collect the set of distinct categories whose terms appear in the comment and SHALL assign the category only when exactly one distinct category matches; when zero or two-or-more distinct categories match, the spending SHALL be left `uncategorized`. Automatic assignment SHALL apply only when the owner left the category `uncategorized`, and SHALL NOT override a category the owner chose explicitly. When a category is assigned automatically, the system SHALL record which term triggered the match so it can be surfaced to the owner.
@@ -65,41 +64,3 @@ When a spending is saved on any input path (web form, voice, or REST), the syste
 
 - **WHEN** the owner explicitly selects a category and the comment also contains a term for a different category
 - **THEN** the system keeps the owner's chosen category and does not auto-assign
-
-### Requirement: Shared core write path
-
-The system SHALL implement a single core write function (`recordSpending`) that validates a spending and persists it to Firestore, and all machine-facing input adapters SHALL create spendings through this one function so that validation and persistence behavior are identical across paths.
-
-#### Scenario: Adapters share validation behavior
-
-- **WHEN** the same spending is submitted via different input paths
-- **THEN** each produces records with identical field structure and validation behavior, distinguishable only by an optional source marker
-
-### Requirement: Authenticated REST write endpoint
-
-The system SHALL expose an HTTP endpoint `POST /spending` that accepts a JSON spending payload and writes it via the core function. The endpoint SHALL require a valid shared secret and SHALL reject any request without it.
-
-#### Scenario: Authorized request succeeds
-
-- **WHEN** a `POST /spending` request arrives carrying the correct shared secret and a valid payload
-- **THEN** the system records the spending and responds with success and the created record id
-
-#### Scenario: Missing or wrong secret is rejected
-
-- **WHEN** a `POST /spending` request arrives with no secret or an incorrect secret
-- **THEN** the system responds with `401 Unauthorized` and does not write any record
-
-### Requirement: Backend and data access authorization
-
-The system SHALL grant privileged (Admin SDK) writes only to server-side code that has verified the shared secret, and Firestore security rules SHALL restrict all direct client reads and writes to documents owned by the authenticated owner's user id.
-
-#### Scenario: Another identity cannot read the data
-
-- **WHEN** a client authenticated as any user other than the owner attempts to read the spendings collection
-- **THEN** Firestore security rules deny the read
-
-#### Scenario: Unauthenticated direct client access is denied
-
-- **WHEN** an unauthenticated client attempts to read or write the spendings collection directly
-- **THEN** Firestore security rules deny the operation
-

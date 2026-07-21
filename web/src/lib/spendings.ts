@@ -2,6 +2,7 @@ import {
   addDoc,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   onSnapshot,
   orderBy,
@@ -59,6 +60,7 @@ export function subscribeToMonth(
           date: data.date,
           comment: data.comment ?? '',
           category: data.category,
+          autoMatchedTerm: data.autoMatchedTerm,
           needsReview: data.needsReview ?? false,
           ownerUid: data.ownerUid,
           source: data.source,
@@ -92,6 +94,8 @@ export async function createSpending(
     date: valid.date,
     comment: valid.comment,
     category: valid.category,
+    // Only persisted when auto-categorisation fired (never write `undefined`).
+    ...(valid.autoMatchedTerm ? { autoMatchedTerm: valid.autoMatchedTerm } : {}),
     needsReview: valid.needsReview ?? false,
     ownerUid,
     source,
@@ -109,6 +113,8 @@ export async function updateSpending(id: string, input: SpendingInput): Promise<
     date: valid.date,
     comment: valid.comment,
     category: valid.category,
+    // Clear any stale matched-term when an edit no longer auto-categorises.
+    autoMatchedTerm: valid.autoMatchedTerm ?? deleteField(),
     needsReview: valid.needsReview ?? false,
   });
 }

@@ -5,18 +5,11 @@ rules_version = '2';
 // Two things are enforced here (design.md D7 + D2):
 //  1. Ownership — every read/write is scoped to the authenticated owner's UID.
 //  2. Validation mirror — the SAME checks as @expenses/shared's validateSpending
-//     (amount is a positive whole integer, category ∈ list ∪ uncategorized,
-//     required fields present). Keep this list in sync with shared/src/categories.ts.
+//     (amount is a positive whole integer, category is a non-empty string,
+//     required fields present). Categories are now user-managed data
+//     (users/{uid}.categories), so there is no fixed enum to keep in sync.
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Mirror of ALLOWED_CATEGORY_VALUES (@expenses/shared).
-    function allowedCategories() {
-      return [
-        'Groceries', 'Health', 'Sports', 'Pet', 'Relationships',
-        'Kid', 'Utilities', 'Other', 'uncategorized'
-      ];
-    }
 
     function isOwner(uid) {
       return request.auth != null && request.auth.uid == uid;
@@ -31,7 +24,8 @@ service cloud.firestore {
     function validSpending(data) {
       return data.keys().hasAll(['amount', 'date', 'comment', 'category', 'ownerUid', 'source'])
         && amountOk(data)
-        && data.category in allowedCategories()
+        && data.category is string
+        && data.category.size() > 0
         && data.date is string
         && data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
         && data.comment is string
@@ -53,6 +47,12 @@ service cloud.firestore {
         && validSpending(request.resource.data);
 
       allow delete: if isOwner(resource.data.ownerUid);
+    }
+
+    // Per-user data (categories live here). The doc id IS the owner uid,
+    // so ownership is the {uid} path param.
+    match /users/{uid} {
+      allow read, create, update, delete: if isOwner(uid);
     }
 
     // Everything else is denied by default.

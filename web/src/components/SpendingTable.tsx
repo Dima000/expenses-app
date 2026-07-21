@@ -1,5 +1,11 @@
 import * as React from 'react';
-import { UNCATEGORIZED, shortDate, type CategoryValue, type Spending } from '@expenses/shared';
+import {
+  resolveCategory,
+  shortDate,
+  type Category,
+  type CategoryValue,
+  type Spending,
+} from '@expenses/shared';
 import { Pencil, Trash2, AlertTriangle, ArrowUpDown, ArrowDownAZ } from 'lucide-react';
 import {
   Table,
@@ -25,6 +31,8 @@ import { assignCategory, deleteSpending } from '@/lib/spendings';
 interface SpendingTableProps {
   spendings: Spending[];
   onEdit: (spending: Spending) => void;
+  /** The owner's live categories, for resolving each row's stored id → name. */
+  categories: Category[];
   /** True while the first month snapshot is still pending. */
   loading?: boolean;
 }
@@ -34,7 +42,7 @@ interface SpendingTableProps {
  * `spendings` arrives ordered date-desc; sorting by category is a reversible
  * client-side view that falls back to that default when cleared.
  */
-export function SpendingTable({ spendings, onEdit, loading }: SpendingTableProps) {
+export function SpendingTable({ spendings, onEdit, categories, loading }: SpendingTableProps) {
   const [pendingDelete, setPendingDelete] = React.useState<Spending | null>(null);
   const [deleting, setDeleting] = React.useState(false);
   const [sortByCategory, setSortByCategory] = React.useState(false);
@@ -54,11 +62,17 @@ export function SpendingTable({ spendings, onEdit, loading }: SpendingTableProps
   // rows stay newest-first within each category. Clearing it returns to default.
   const rows = React.useMemo(() => {
     if (!sortByCategory) return spendings;
+    // Decorate with the resolved label once, so the comparison sort doesn't
+    // re-resolve each row on every comparison.
     return spendings
-      .map((s, i) => ({ s, i }))
-      .sort((a, b) => a.s.category.localeCompare(b.s.category) || a.i - b.i)
+      .map((s, i) => ({
+        s,
+        i,
+        label: resolveCategory(s.category, categories)?.name ?? 'Uncategorised',
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label) || a.i - b.i)
       .map(({ s }) => s);
-  }, [spendings, sortByCategory]);
+  }, [spendings, sortByCategory, categories]);
 
   if (loading) {
     return (
@@ -108,7 +122,9 @@ export function SpendingTable({ spendings, onEdit, loading }: SpendingTableProps
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((s) => (
+          {rows.map((s) => {
+            const resolved = resolveCategory(s.category, categories);
+            return (
             <TableRow key={s.id}>
               <TableCell className="tabular-nums text-muted-foreground">
                 {shortDate(s.date)}
@@ -126,18 +142,20 @@ export function SpendingTable({ spendings, onEdit, loading }: SpendingTableProps
                 {s.comment}
               </TableCell>
               <TableCell>
-                {s.category === UNCATEGORIZED ? (
+                {resolved ? (
+                  <Badge variant="secondary">{resolved.name}</Badge>
+                ) : (
                   <div className="w-40">
-                    {/* Inline categorize-later: assigning removes it from the uncategorized set. */}
+                    {/* Inline categorize-later: assigning removes it from the uncategorized set.
+                        Covers both `uncategorized` and rows whose category no longer resolves. */}
                     <CategorySelect
-                      value={UNCATEGORIZED}
+                      value=""
+                      categories={categories}
                       allowUncategorized={false}
                       placeholder="Assign…"
                       onChange={(c: CategoryValue) => assignCategory(s.id, c)}
                     />
                   </div>
-                ) : (
-                  <Badge variant="secondary">{s.category}</Badge>
                 )}
               </TableCell>
               <TableCell>
@@ -156,7 +174,8 @@ export function SpendingTable({ spendings, onEdit, loading }: SpendingTableProps
                 </div>
               </TableCell>
             </TableRow>
-          ))}
+            );
+          })}
         </TableBody>
       </Table>
 

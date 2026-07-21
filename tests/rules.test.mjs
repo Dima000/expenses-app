@@ -60,12 +60,20 @@ test('unauthenticated client cannot read or write', async () => {
   await assertFails(setDoc(doc(anon, 'spendings/s3'), validDoc()));
 });
 
-test('invalid client writes are denied (bad amount, bad category)', async () => {
+test('invalid client writes are denied (bad amount, empty category, bad date)', async () => {
   const db = env.authenticatedContext(OWNER).firestore();
   await assertFails(setDoc(doc(db, 'spendings/bad1'), { ...validDoc(), amount: 0 }));
   await assertFails(setDoc(doc(db, 'spendings/bad2'), { ...validDoc(), amount: 1.5 }));
-  await assertFails(setDoc(doc(db, 'spendings/bad3'), { ...validDoc(), category: 'Nope' }));
+  // Category is no longer restricted to a fixed list, but it must be a non-empty string.
+  await assertFails(setDoc(doc(db, 'spendings/bad3'), { ...validDoc(), category: '' }));
   await assertFails(setDoc(doc(db, 'spendings/bad4'), { ...validDoc(), date: 'not-a-date' }));
+});
+
+test('a spending with an arbitrary (non-list) category id is accepted', async () => {
+  const db = env.authenticatedContext(OWNER).firestore();
+  await assertSucceeds(
+    setDoc(doc(db, 'spendings/custom1'), { ...validDoc(), category: 'some-custom-id' }),
+  );
 });
 
 test('a needsReview entry may have amount 0', async () => {
@@ -83,4 +91,33 @@ test('a needsReview entry may have amount 0', async () => {
 test('cannot create a spending owned by someone else', async () => {
   const db = env.authenticatedContext(OWNER).firestore();
   await assertFails(setDoc(doc(db, 'spendings/spoof'), validDoc(OTHER)));
+});
+
+const categoriesDoc = () => ({
+  categories: [{ id: 'groceries', name: 'Groceries', terms: [] }],
+});
+
+test('owner can read and write their own categories document', async () => {
+  const db = env.authenticatedContext(OWNER).firestore();
+  // Create.
+  await assertSucceeds(setDoc(doc(db, `users/${OWNER}`), categoriesDoc()));
+  // Read.
+  await assertSucceeds(getDoc(doc(db, `users/${OWNER}`)));
+  // Update.
+  await assertSucceeds(
+    setDoc(doc(db, `users/${OWNER}`), {
+      categories: [{ id: 'groceries', name: 'Groceries', terms: ['market'] }],
+    }),
+  );
+});
+
+test('another identity cannot read or write the owner categories document', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), `users/${OWNER}`), categoriesDoc());
+  });
+  const other = env.authenticatedContext(OTHER).firestore();
+  await assertFails(getDoc(doc(other, `users/${OWNER}`)));
+  await assertFails(setDoc(doc(other, `users/${OWNER}`), categoriesDoc()));
+  // ...and cannot write a doc whose id mismatches their own uid either.
+  await assertFails(setDoc(doc(other, 'users/some-other-uid'), categoriesDoc()));
 });
