@@ -15,7 +15,7 @@ import { MonthNav } from '@/components/MonthNav';
 import { TotalCard } from '@/components/TotalCard';
 import { SpendingTable } from '@/components/SpendingTable';
 import { SpendingForm } from '@/components/SpendingForm';
-import { CategoriesDialog } from '@/components/CategoriesDialog';
+import { CategoriesPage } from '@/components/CategoriesPage';
 import { VoiceButton, type VoiceCapture } from '@/components/VoiceButton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,7 +34,7 @@ export default function App() {
   const [categories, setCategories] = React.useState<Category[]>([]);
   const [onlyUncategorized, setOnlyUncategorized] = React.useState(false);
   const [formOpen, setFormOpen] = React.useState(false);
-  const [categoriesOpen, setCategoriesOpen] = React.useState(false);
+  const [showCategories, setShowCategories] = React.useState(false);
   const [editing, setEditing] = React.useState<Spending | null>(null);
   // Prefill + source for a NEW entry (blank + 'web' for the + button; parsed
   // values + 'voice' when opened for review from the mic).
@@ -101,6 +101,17 @@ export default function App() {
   }
   if (!user) return <SignIn onSignIn={signIn} />;
 
+  // Full-page categories manager (in-app view switch; no router).
+  if (showCategories) {
+    return (
+      <CategoriesPage
+        ownerUid={user.uid}
+        categories={categories}
+        onClose={() => setShowCategories(false)}
+      />
+    );
+  }
+
   return (
     <div className="mx-auto min-h-dvh max-w-2xl px-4 pb-28 pt-6">
       <header className="mb-4 flex items-center justify-between">
@@ -110,7 +121,7 @@ export default function App() {
             variant="ghost"
             size="icon"
             aria-label="Manage categories"
-            onClick={() => setCategoriesOpen(true)}
+            onClick={() => setShowCategories(true)}
           >
             <Tags />
           </Button>
@@ -172,13 +183,6 @@ export default function App() {
         editing={editing}
         prefill={addPrefill}
         addSource={addSource}
-      />
-
-      <CategoriesDialog
-        open={categoriesOpen}
-        onOpenChange={setCategoriesOpen}
-        ownerUid={user.uid}
-        categories={categories}
       />
     </div>
   );
