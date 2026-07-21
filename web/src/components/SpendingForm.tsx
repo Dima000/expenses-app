@@ -187,6 +187,11 @@ export function SpendingForm({
               onChange={setCategory}
               categories={categories}
             />
+            {editing?.autoMatchedTerm && (
+              <p className="text-xs text-muted-foreground">
+                Auto-categorised from the keyword ‘{editing.autoMatchedTerm}’.
+              </p>
+            )}
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <DialogFooter>
