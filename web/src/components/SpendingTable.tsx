@@ -6,7 +6,7 @@ import {
   type CategoryValue,
   type Spending,
 } from '@expenses/shared';
-import { Pencil, Trash2, AlertTriangle, ArrowUpDown, ArrowDownAZ } from 'lucide-react';
+import { Pencil, Trash2, AlertTriangle, ArrowUpDown, ArrowDownAZ, Sparkles } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -143,14 +143,18 @@ export function SpendingTable({ spendings, onEdit, categories, loading }: Spendi
               </TableCell>
               <TableCell>
                 {resolved ? (
-                  <Badge
-                    variant="secondary"
-                    title={
-                      s.autoMatchedTerm ? `categorised via '${s.autoMatchedTerm}'` : undefined
-                    }
-                  >
-                    {resolved.name}
-                  </Badge>
+                  <div className="flex flex-col items-start gap-0.5">
+                    <Badge variant="secondary">{resolved.name}</Badge>
+                    {s.autoMatchedTerm && (
+                      <span
+                        className="inline-flex items-center gap-0.5 text-[11px] leading-none text-muted-foreground"
+                        title={`Auto-categorised — matched keyword '${s.autoMatchedTerm}'`}
+                      >
+                        <Sparkles className="size-2.5 shrink-0" />
+                        via ‘{s.autoMatchedTerm}’
+                      </span>
+                    )}
+                  </div>
                 ) : (
                   <div className="w-40">
                     {/* Inline categorize-later: assigning removes it from the uncategorized set.
