@@ -4,6 +4,25 @@ import type { CategoryValue } from './categories.js';
 export type SpendingSource = 'web' | 'voice' | 'rest';
 
 /**
+ * A user-managed category: a stable `id` (kept across renames), a display
+ * `name` (unique within the owner's set), and its globally-unique auto-match
+ * `terms`. New categories start with no terms.
+ */
+export interface Category {
+  id: string;
+  name: string;
+  terms: string[];
+}
+
+/** The Firestore `users/{uid}` document holding the owner's category set. */
+export interface UserCategoriesDoc {
+  categories: Category[];
+}
+
+/** Firestore top-level collection holding one settings doc per owner. */
+export const USERS_COLLECTION = 'users';
+
+/**
  * The fields a caller supplies when creating/editing a spending. This is the
  * shared, transport-agnostic shape validated by every input path.
  */
@@ -14,13 +33,19 @@ export interface SpendingInput {
   date: string;
   /** Free-text comment; for voice entries this holds the leftover utterance. */
   comment: string;
-  /** One of the eight fixed categories or `uncategorized`. */
+  /** A category id, a legacy category name, or `uncategorized`. */
   category: CategoryValue;
   /**
    * Set when the amount could not be parsed confidently (voice) and must be
    * corrected later. When true, `amount` may be `0`. See design.md D5/9.4.
    */
   needsReview?: boolean;
+  /**
+   * The term that triggered auto-categorisation, recorded at write time so the
+   * UI can show "categorised via '<term>'". Set only when the category was
+   * assigned automatically; absent for manual picks and uncategorized entries.
+   */
+  autoMatchedTerm?: string;
 }
 
 /**

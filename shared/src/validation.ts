@@ -1,4 +1,4 @@
-import { ALLOWED_CATEGORY_VALUES, isAllowedCategory } from './categories.js';
+import { isAllowedCategory } from './categories.js';
 import type { SpendingInput } from './types.js';
 
 export interface ValidationResult {
@@ -22,7 +22,9 @@ export function isValidDateString(value: unknown): value is string {
 /**
  * Validate a spending payload against the shared rules (design.md D2):
  * - amount is a positive whole integer (or `0` when `needsReview` is set)
- * - category ∈ fixed list ∪ `uncategorized`
+ * - category is any non-empty string (an id, a legacy name, or `uncategorized`);
+ *   membership is no longer enforced — an unresolvable value renders as
+ *   "Uncategorised" (design.md A1)
  * - date is a valid `YYYY-MM-DD`
  * - comment is a string
  *
@@ -53,7 +55,7 @@ export function validateSpending(input: Partial<SpendingInput> | undefined): Val
   if (input.category === undefined || input.category === null) {
     errors.push('category is required');
   } else if (!isAllowedCategory(input.category)) {
-    errors.push(`category must be one of: ${ALLOWED_CATEGORY_VALUES.join(', ')}`);
+    errors.push('category must be a non-empty string');
   }
 
   if (input.date === undefined || input.date === null) {
@@ -82,7 +84,8 @@ export class SpendingValidationError extends Error {
 /**
  * Validate and narrow to a well-formed {@link SpendingInput}, throwing
  * {@link SpendingValidationError} otherwise. Normalizes an absent comment to
- * `''` and an absent `needsReview` to `false`.
+ * `''` and an absent `needsReview` to `false`. Carries `autoMatchedTerm`
+ * through when set, so it can be persisted.
  */
 export function assertValidSpending(input: Partial<SpendingInput> | undefined): SpendingInput {
   const { ok, errors } = validateSpending(input);
@@ -93,5 +96,6 @@ export function assertValidSpending(input: Partial<SpendingInput> | undefined): 
     comment: input.comment ?? '',
     category: input.category!,
     needsReview: input.needsReview === true,
+    ...(input.autoMatchedTerm ? { autoMatchedTerm: input.autoMatchedTerm } : {}),
   };
 }
