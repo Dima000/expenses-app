@@ -15,9 +15,9 @@
 
 ## 3. Web data layer for categories
 
-- [ ] 3.1 Add `web/src/lib/categories.ts` mirroring `web/src/lib/spendings.ts`: a live `subscribeToCategories(ownerUid, onData)` `onSnapshot` reader over `users/{uid}`.
-- [ ] 3.2 Add writers: `addCategory`, `renameCategory`, `removeCategory`, `addTerm`, `removeTerm` — each enforcing name/term uniqueness (via the shared helpers) before writing and updating the single doc.
-- [ ] 3.3 Add one-time seeding: if the categories doc is absent on first read, write `DEFAULT_CATEGORIES`; never re-seed once the doc exists.
+- [x] 3.1 Add `web/src/lib/categories.ts` mirroring `web/src/lib/spendings.ts`: a live `subscribeToCategories(ownerUid, onData)` `onSnapshot` reader over `users/{uid}`.
+- [x] 3.2 Add writers: `addCategory`, `renameCategory`, `removeCategory`, `addTerm`, `removeTerm` — each enforcing name/term uniqueness (via the shared helpers) before writing and updating the single doc.
+- [x] 3.3 Add one-time seeding: if the categories doc is absent on first read, write `DEFAULT_CATEGORIES`; never re-seed once the doc exists.
 
 ## 4. Auto-categorisation on all write paths
 
