@@ -9,7 +9,7 @@ import { LogOut, Plus, Tags } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { subscribeToMonth } from '@/lib/spendings';
 import { subscribeToCategories } from '@/lib/categories';
-import { currentMonthKey } from '@/lib/date';
+import { currentMonthKey, todayString, yesterdayString } from '@/lib/date';
 import { SignIn } from '@/components/SignIn';
 import { MonthNav } from '@/components/MonthNav';
 import { TotalCard } from '@/components/TotalCard';
@@ -25,6 +25,14 @@ function launchedForVoice(): boolean {
   return new URLSearchParams(window.location.search).get('voice') === '1';
 }
 
+/** Quick filter ids; the filters are exclusive — at most one is active at a time. */
+type FilterId = 'uncategorized' | 'today' | 'yesterday';
+
+/** Active-state classes for a filter button; keeps the outline border box so the
+ *  row doesn't shift when toggling (only the border/background colour changes). */
+const activeFilterClass =
+  'border-primary bg-primary text-primary-foreground hover:bg-primary/90';
+
 export default function App() {
   const { user, loading, signIn, logOut } = useAuth();
   const [month, setMonth] = React.useState(currentMonthKey);
@@ -32,7 +40,8 @@ export default function App() {
   // this drives the loading state so the page doesn't flash empty and jump.
   const [spendings, setSpendings] = React.useState<Spending[] | null>(null);
   const [categories, setCategories] = React.useState<Category[]>([]);
-  const [onlyUncategorized, setOnlyUncategorized] = React.useState(false);
+  // Exclusive quick filter; `null` = no filter, show the whole month.
+  const [activeFilter, setActiveFilter] = React.useState<FilterId | null>(null);
   const [formOpen, setFormOpen] = React.useState(false);
   const [showCategories, setShowCategories] = React.useState(false);
   const [editing, setEditing] = React.useState<Spending | null>(null);
@@ -73,10 +82,25 @@ export default function App() {
     () => (spendings ?? []).reduce((sum, s) => sum + (s.amount || 0), 0),
     [spendings],
   );
-  const visible = React.useMemo(
-    () => (onlyUncategorized ? (spendings ?? []).filter(isUncategorized) : spendings ?? []),
-    [spendings, onlyUncategorized, isUncategorized],
+  // Each quick filter is a predicate; the visible list is the active filter's
+  // matches, or the whole month when no filter is active.
+  const predicates = React.useMemo<Record<FilterId, (s: Spending) => boolean>>(
+    () => ({
+      uncategorized: isUncategorized,
+      today: (s) => s.date === todayString(),
+      yesterday: (s) => s.date === yesterdayString(),
+    }),
+    [isUncategorized],
   );
+  const visible = React.useMemo(() => {
+    const rows = spendings ?? [];
+    return activeFilter ? rows.filter(predicates[activeFilter]) : rows;
+  }, [spendings, activeFilter, predicates]);
+
+  // Exclusive: clicking the active filter clears it, otherwise selects it.
+  const toggleFilter = React.useCallback((id: FilterId) => {
+    setActiveFilter((prev) => (prev === id ? null : id));
+  }, []);
 
   const openEdit = React.useCallback((s: Spending) => {
     setEditing(s);
@@ -141,10 +165,11 @@ export default function App() {
 
       <div className="mb-3 flex items-center gap-2">
         <Button
-          variant={onlyUncategorized ? 'default' : 'outline'}
+          variant="outline"
           size="sm"
-          onClick={() => setOnlyUncategorized((v) => !v)}
-          disabled={uncategorizedCount === 0 && !onlyUncategorized}
+          className={activeFilter === 'uncategorized' ? activeFilterClass : undefined}
+          onClick={() => toggleFilter('uncategorized')}
+          disabled={uncategorizedCount === 0 && activeFilter !== 'uncategorized'}
         >
           Uncategorized
           {uncategorizedCount > 0 && (
@@ -152,6 +177,22 @@ export default function App() {
               {uncategorizedCount}
             </Badge>
           )}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className={activeFilter === 'today' ? activeFilterClass : undefined}
+          onClick={() => toggleFilter('today')}
+        >
+          Today
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className={activeFilter === 'yesterday' ? activeFilterClass : undefined}
+          onClick={() => toggleFilter('yesterday')}
+        >
+          Yesterday
         </Button>
       </div>
 
