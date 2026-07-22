@@ -12,6 +12,13 @@ export function todayString(): string {
   return toDateString(new Date());
 }
 
+/** Yesterday as `YYYY-MM-DD` (local); `setDate` handles month/year rollover. */
+export function yesterdayString(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return toDateString(d);
+}
+
 /** Current month as `YYYY-MM` (local). */
 export function currentMonthKey(): string {
   const d = new Date();
