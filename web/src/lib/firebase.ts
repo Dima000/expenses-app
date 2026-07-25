@@ -1,6 +1,12 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, connectAuthEmulator } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import {
+  connectFirestoreEmulator,
+  initializeFirestore,
+  memoryLocalCache,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from 'firebase/firestore';
 
 /**
  * Firebase client config. Values come from Vite env vars (see `.env.example`),
@@ -17,7 +23,23 @@ const firebaseConfig = {
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+/**
+ * Persist Firestore data in IndexedDB so cold/offline starts read the owner's
+ * real data instead of an empty cache, and offline writes queue durably. Falls
+ * back to an in-memory cache if IndexedDB is unavailable (e.g. private browsing).
+ */
+function createFirestore() {
+  try {
+    return initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    });
+  } catch {
+    return initializeFirestore(app, { localCache: memoryLocalCache() });
+  }
+}
+
+export const db = createFirestore();
 export const googleProvider = new GoogleAuthProvider();
 
 // Point the SDK at the local emulators during development.

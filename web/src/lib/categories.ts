@@ -1,4 +1,4 @@
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { doc, onSnapshot, runTransaction, setDoc } from 'firebase/firestore';
 import {
   DEFAULT_CATEGORIES,
   USERS_COLLECTION,
@@ -19,9 +19,26 @@ async function writeCategories(ownerUid: string, categories: Category[]): Promis
 }
 
 /**
+ * Create-if-absent seed write: only creates the categories doc when it does
+ * not already exist server-side, so a stale/queued seed can never clobber the
+ * owner's real category set even if it races a reconnect.
+ */
+async function seedCategoriesIfAbsent(ownerUid: string): Promise<void> {
+  const ref = userDoc(ownerUid);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (snap.exists()) return;
+    tx.set(ref, { categories: DEFAULT_CATEGORIES }, { merge: true });
+  });
+}
+
+/**
  * Subscribe to the owner's categories, mirroring `subscribeToMonth`. Live
- * `onSnapshot` over `users/{uid}`. One-time seeds the defaults on first run
- * (doc absent); never re-seeds once the doc exists, so deleting all categories
+ * `onSnapshot` over `users/{uid}`. One-time seeds the defaults on first run,
+ * but only once the server (not the local cache) has confirmed the doc is
+ * absent — a cache-cold or offline "absent" snapshot doesn't prove the doc
+ * doesn't exist, so it's ignored and the code simply waits for the server
+ * snapshot. Never re-seeds once the doc exists, so deleting all categories
  * is a persistent, valid state. Returns an unsubscribe function.
  */
 export function subscribeToCategories(
@@ -34,11 +51,15 @@ export function subscribeToCategories(
     userDoc(ownerUid),
     (snap) => {
       if (!snap.exists()) {
-        // First run: seed once. The write triggers a fresh snapshot with the
-        // persisted defaults; surface them optimistically in the meantime.
+        if (snap.metadata.fromCache) {
+          // Not server-confirmed: could be a cold/offline cache, not a real
+          // first run. Wait for the server snapshot instead of seeding.
+          return;
+        }
+        // Server-confirmed absence: genuine first run, seed once.
         if (!seeded) {
           seeded = true;
-          writeCategories(ownerUid, DEFAULT_CATEGORIES).catch((err) => onError?.(err as Error));
+          seedCategoriesIfAbsent(ownerUid).catch((err) => onError?.(err as Error));
         }
         onData(DEFAULT_CATEGORIES);
         return;
