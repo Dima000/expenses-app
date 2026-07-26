@@ -21,4 +21,4 @@
 ## 4. Wrap up
 
 - [x] 4.1 Rebuild `@expenses/shared` if touched (it is not expected to change here) and typecheck the web build.
-- [ ] 4.2 Manual smoke test in the installed/served PWA: cold open shows real data (not bare defaults), added categories and keywords persist across reloads.
+- [x] 4.2 Manual smoke test in the installed/served PWA: cold open shows real data (not bare defaults), added categories and keywords persist across reloads.
