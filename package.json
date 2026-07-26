@@ -21,6 +21,9 @@
   "engines": {
     "node": ">=22"
   },
+  "overrides": {
+    "uuid": "^11.1.1"
+  },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.1",
     "esbuild": "^0.28.1"
