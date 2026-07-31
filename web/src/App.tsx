@@ -5,7 +5,9 @@ import {
   type Spending,
   type SpendingSource,
 } from '@expenses/shared';
+import type { User } from 'firebase/auth';
 import { LogOut, Plus, Tags } from 'lucide-react';
+import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { subscribeToMonth } from '@/lib/spendings';
 import { subscribeToCategories } from '@/lib/categories';
@@ -43,7 +45,6 @@ export default function App() {
   // Exclusive quick filter; `null` = no filter, show the whole month.
   const [activeFilter, setActiveFilter] = React.useState<FilterId | null>(null);
   const [formOpen, setFormOpen] = React.useState(false);
-  const [showCategories, setShowCategories] = React.useState(false);
   const [editing, setEditing] = React.useState<Spending | null>(null);
   // Prefill + source for a NEW entry (blank + 'web' for the + button; parsed
   // values + 'voice' when opened for review from the mic).
@@ -125,16 +126,92 @@ export default function App() {
   }
   if (!user) return <SignIn onSignIn={signIn} />;
 
-  // Full-page categories manager (in-app view switch; no router).
-  if (showCategories) {
-    return (
-      <CategoriesPage
-        ownerUid={user.uid}
-        categories={categories}
-        onClose={() => setShowCategories(false)}
-      />
-    );
-  }
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <Dashboard
+              user={user}
+              logOut={logOut}
+              month={month}
+              setMonth={setMonth}
+              spendings={spendings}
+              spendingsLoading={spendingsLoading}
+              total={total}
+              categories={categories}
+              activeFilter={activeFilter}
+              toggleFilter={toggleFilter}
+              uncategorizedCount={uncategorizedCount}
+              visible={visible}
+              openEdit={openEdit}
+              openAdd={openAdd}
+              openVoiceReview={openVoiceReview}
+              formOpen={formOpen}
+              setFormOpen={setFormOpen}
+              editing={editing}
+              addPrefill={addPrefill}
+              addSource={addSource}
+            />
+          }
+        />
+        <Route
+          path="/categories"
+          element={<CategoriesRoute ownerUid={user.uid} categories={categories} />}
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+interface DashboardProps {
+  user: User;
+  logOut: () => void;
+  month: string;
+  setMonth: (month: string) => void;
+  spendings: Spending[] | null;
+  spendingsLoading: boolean;
+  total: number;
+  categories: Category[];
+  activeFilter: FilterId | null;
+  toggleFilter: (id: FilterId) => void;
+  uncategorizedCount: number;
+  visible: Spending[];
+  openEdit: (s: Spending) => void;
+  openAdd: () => void;
+  openVoiceReview: (capture: VoiceCapture) => void;
+  formOpen: boolean;
+  setFormOpen: (open: boolean) => void;
+  editing: Spending | null;
+  addPrefill: VoiceCapture | null;
+  addSource: SpendingSource;
+}
+
+function Dashboard({
+  user,
+  logOut,
+  month,
+  setMonth,
+  spendings,
+  spendingsLoading,
+  total,
+  categories,
+  activeFilter,
+  toggleFilter,
+  uncategorizedCount,
+  visible,
+  openEdit,
+  openAdd,
+  openVoiceReview,
+  formOpen,
+  setFormOpen,
+  editing,
+  addPrefill,
+  addSource,
+}: DashboardProps) {
+  const navigate = useNavigate();
 
   return (
     <div className="mx-auto min-h-dvh max-w-2xl px-4 pb-28 pt-6">
@@ -145,7 +222,7 @@ export default function App() {
             variant="ghost"
             size="icon"
             aria-label="Manage categories"
-            onClick={() => setShowCategories(true)}
+            onClick={() => navigate('/categories')}
           >
             <Tags />
           </Button>
@@ -227,4 +304,14 @@ export default function App() {
       />
     </div>
   );
+}
+
+interface CategoriesRouteProps {
+  ownerUid: string;
+  categories: Category[];
+}
+
+function CategoriesRoute({ ownerUid, categories }: CategoriesRouteProps) {
+  const navigate = useNavigate();
+  return <CategoriesPage ownerUid={ownerUid} categories={categories} onClose={() => navigate('/')} />;
 }
