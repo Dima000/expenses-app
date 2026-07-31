@@ -1,16 +1,19 @@
 import * as React from 'react';
-import { ArrowLeft, ChevronDown, ChevronRight, Pencil, Plus, Trash2, X } from 'lucide-react';
-import type { Category } from '@expenses/shared';
+import { ArrowLeft, Check, ChevronDown, ChevronRight, Palette, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { CATEGORY_PALETTE, colorIdFor, sortCategoriesByName, type Category } from '@expenses/shared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CategoryColorDot } from '@/components/CategoryColorDot';
 import {
   addCategory,
   addTerm,
   removeCategory,
   removeTerm,
   renameCategory,
+  setCategoryColor,
 } from '@/lib/categories';
 
 const errorMessage = (err: unknown, fallback: string) =>
@@ -34,10 +37,7 @@ export function CategoriesPage({ ownerUid, categories, onClose }: CategoriesPage
   const [newName, setNewName] = React.useState('');
   const [addError, setAddError] = React.useState<string | null>(null);
 
-  const sorted = React.useMemo(
-    () => [...categories].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })),
-    [categories],
-  );
+  const sorted = React.useMemo(() => sortCategoriesByName(categories), [categories]);
 
   async function handleAdd() {
     setAddError(null);
@@ -120,9 +120,23 @@ function CategoryRow({ ownerUid, categories, category }: CategoryRowProps) {
   const [nameDraft, setNameDraft] = React.useState(category.name);
   const [termDraft, setTermDraft] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
+  const [colorPickerOpen, setColorPickerOpen] = React.useState(false);
 
   // Follow the persisted name if it changes elsewhere (e.g. another device).
   React.useEffect(() => setNameDraft(category.name), [category.name]);
+
+  const colorId = colorIdFor(category, categories.indexOf(category));
+
+  async function handlePickColor(next: string) {
+    setColorPickerOpen(false);
+    if (next === colorId) return;
+    setError(null);
+    try {
+      await setCategoryColor(ownerUid, categories, category.id, next);
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to set color'));
+    }
+  }
 
   async function handleRename() {
     const next = nameDraft.trim();
@@ -204,9 +218,10 @@ function CategoryRow({ ownerUid, categories, category }: CategoryRowProps) {
         ) : (
           <button
             type="button"
-            className="flex-1 truncate text-left font-medium"
+            className="flex flex-1 items-center gap-2 truncate text-left font-medium"
             onClick={() => setExpanded((v) => !v)}
           >
+            <CategoryColorDot colorId={colorId} />
             {category.name}
           </button>
         )}
@@ -214,6 +229,34 @@ function CategoryRow({ ownerUid, categories, category }: CategoryRowProps) {
         <span className="shrink-0 px-1 text-xs tabular-nums text-muted-foreground">
           {termCount} {termCount === 1 ? 'keyword' : 'keywords'}
         </span>
+        <Popover open={colorPickerOpen} onOpenChange={setColorPickerOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={`Change color for ${category.name}`}
+            >
+              <Palette />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto">
+            <div className="grid grid-cols-8 gap-1.5">
+              {CATEGORY_PALETTE.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  aria-label={p.name}
+                  aria-pressed={p.id === colorId}
+                  className="flex size-6 items-center justify-center rounded-full"
+                  style={{ backgroundColor: p.oklch }}
+                  onClick={() => void handlePickColor(p.id)}
+                >
+                  {p.id === colorId && <Check className="size-3.5 text-white mix-blend-difference" />}
+                </button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
         <Button
           variant="ghost"
           size="icon"

@@ -3,6 +3,7 @@ import {
   DEFAULT_CATEGORIES,
   USERS_COLLECTION,
   withCategoryAdded,
+  withCategoryColorChanged,
   withCategoryRemoved,
   withCategoryRenamed,
   withTermAdded,
@@ -93,6 +94,15 @@ export async function renameCategory(
   name: string,
 ): Promise<void> {
   await writeCategories(ownerUid, withCategoryRenamed(categories, id, name));
+}
+
+export async function setCategoryColor(
+  ownerUid: string,
+  categories: Category[],
+  id: string,
+  colorId: string,
+): Promise<void> {
+  await writeCategories(ownerUid, withCategoryColorChanged(categories, id, colorId));
 }
 
 /** Non-destructive: existing spendings keep their stored id and render "Uncategorised". */

@@ -12,6 +12,11 @@ import {
   findCategoryByName,
   slugify,
   DEFAULT_CATEGORIES,
+  CATEGORY_PALETTE,
+  nextAvailableColorId,
+  colorIdFor,
+  withCategoryColorChanged,
+  sortCategoriesByName,
 } from '@expenses/shared';
 
 // A small owner category set used across the matcher/uniqueness tests.
@@ -163,4 +168,66 @@ test('uniqueness: duplicate category name is detected case-insensitively', () =>
   assert.equal(findCategoryByName('Travel', CATS), null);
   // Renaming a category to its own current name is not a conflict.
   assert.equal(findCategoryByName('Groceries', CATS, 'groceries'), null);
+});
+
+// --- category colors ---
+
+test('nextAvailableColorId: picks the first palette color not already used', () => {
+  const used = [
+    { id: 'a', name: 'A', terms: [], colorId: CATEGORY_PALETTE[0].id },
+    { id: 'b', name: 'B', terms: [], colorId: CATEGORY_PALETTE[1].id },
+  ];
+  assert.equal(nextAvailableColorId(used), CATEGORY_PALETTE[2].id);
+  assert.equal(nextAvailableColorId([]), CATEGORY_PALETTE[0].id);
+});
+
+test('nextAvailableColorId: falls back to reuse once all 16 are used', () => {
+  const allUsed = CATEGORY_PALETTE.map((p, i) => ({
+    id: `cat-${i}`,
+    name: `Cat ${i}`,
+    terms: [],
+    colorId: p.id,
+  }));
+  assert.equal(nextAvailableColorId(allUsed), CATEGORY_PALETTE[0].id);
+});
+
+test('colorIdFor: stored id wins over the positional fallback', () => {
+  const cat = { id: 'a', name: 'A', terms: [], colorId: CATEGORY_PALETTE[5].id };
+  assert.equal(colorIdFor(cat, 0), CATEGORY_PALETTE[5].id);
+});
+
+test('colorIdFor: missing id falls back deterministically by index, without mutating', () => {
+  const cat = { id: 'a', name: 'A', terms: [] };
+  assert.equal(colorIdFor(cat, 2), CATEGORY_PALETTE[2].id);
+  assert.equal(colorIdFor(cat, 2 + CATEGORY_PALETTE.length), CATEGORY_PALETTE[2].id);
+  assert.equal('colorId' in cat, false);
+});
+
+test('withCategoryColorChanged: updates only the targeted category', () => {
+  const cats = [
+    { id: 'a', name: 'A', terms: [], colorId: 'gray' },
+    { id: 'b', name: 'B', terms: [], colorId: 'red' },
+  ];
+  const next = withCategoryColorChanged(cats, 'a', 'blue');
+  assert.equal(next.find((c) => c.id === 'a').colorId, 'blue');
+  assert.equal(next.find((c) => c.id === 'b').colorId, 'red');
+  assert.equal(cats.find((c) => c.id === 'a').colorId, 'gray'); // original untouched
+});
+
+test('sortCategoriesByName: locale-aware, case-insensitive alphabetical order', () => {
+  const cats = [
+    { id: 'z', name: 'zebra', terms: [] },
+    { id: 'a', name: 'Apple', terms: [] },
+    { id: 'm', name: 'mango', terms: [] },
+  ];
+  assert.deepEqual(
+    sortCategoriesByName(cats).map((c) => c.name),
+    ['Apple', 'mango', 'zebra'],
+  );
+});
+
+test('DEFAULT_CATEGORIES: all 8 have a colorId and no two share the same color', () => {
+  assert.ok(DEFAULT_CATEGORIES.every((c) => typeof c.colorId === 'string' && c.colorId));
+  const colorIds = DEFAULT_CATEGORIES.map((c) => c.colorId);
+  assert.equal(new Set(colorIds).size, colorIds.length);
 });

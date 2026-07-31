@@ -1,4 +1,10 @@
-import { UNCATEGORIZED, type Category, type CategoryValue } from '@expenses/shared';
+import {
+  colorIdFor,
+  sortCategoriesByName,
+  UNCATEGORIZED,
+  type Category,
+  type CategoryValue,
+} from '@expenses/shared';
 import {
   Select,
   SelectContent,
@@ -6,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { CategoryColorDot } from '@/components/CategoryColorDot';
 
 interface CategorySelectProps {
   value: CategoryValue;
@@ -27,6 +34,8 @@ export function CategorySelect({
   id,
   placeholder = 'Select a category',
 }: CategorySelectProps) {
+  const sorted = sortCategoriesByName(categories);
+
   return (
     <Select value={value} onValueChange={(v) => onChange(v as CategoryValue)}>
       <SelectTrigger id={id}>
@@ -34,9 +43,12 @@ export function CategorySelect({
       </SelectTrigger>
       <SelectContent>
         {allowUncategorized && <SelectItem value={UNCATEGORIZED}>Uncategorized</SelectItem>}
-        {categories.map((c) => (
+        {sorted.map((c) => (
           <SelectItem key={c.id} value={c.id}>
-            {c.name}
+            <span className="flex items-center gap-2">
+              <CategoryColorDot colorId={colorIdFor(c, categories.indexOf(c))} />
+              {c.name}
+            </span>
           </SelectItem>
         ))}
       </SelectContent>
