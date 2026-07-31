@@ -28,6 +28,36 @@ export const CATEGORIES = [
 export const UNCATEGORIZED = 'uncategorized' as const;
 
 /**
+ * The fixed 16-swatch categorical color palette a category's `colorId` refers
+ * to. Held at matched lightness/chroma (OKLCH) so no swatch reads louder than
+ * another; values are theme-independent (same in light and dark).
+ */
+export interface PaletteColor {
+  id: string;
+  name: string;
+  oklch: string;
+}
+
+export const CATEGORY_PALETTE: PaletteColor[] = [
+  { id: 'gray', name: 'Gray', oklch: 'oklch(0.72 0.01 285)' },
+  { id: 'brown', name: 'Brown', oklch: 'oklch(0.72 0.05 55)' },
+  { id: 'red', name: 'Red', oklch: 'oklch(0.72 0.19 25)' },
+  { id: 'orange', name: 'Orange', oklch: 'oklch(0.72 0.19 55)' },
+  { id: 'amber', name: 'Amber', oklch: 'oklch(0.72 0.19 75)' },
+  { id: 'yellow', name: 'Yellow', oklch: 'oklch(0.72 0.19 95)' },
+  { id: 'lime', name: 'Lime', oklch: 'oklch(0.72 0.19 125)' },
+  { id: 'green', name: 'Green', oklch: 'oklch(0.72 0.19 145)' },
+  { id: 'teal', name: 'Teal', oklch: 'oklch(0.72 0.19 165)' },
+  { id: 'cyan', name: 'Cyan', oklch: 'oklch(0.72 0.19 195)' },
+  { id: 'sky', name: 'Sky', oklch: 'oklch(0.72 0.19 225)' },
+  { id: 'blue', name: 'Blue', oklch: 'oklch(0.72 0.19 255)' },
+  { id: 'indigo', name: 'Indigo', oklch: 'oklch(0.72 0.19 280)' },
+  { id: 'violet', name: 'Violet', oklch: 'oklch(0.72 0.19 300)' },
+  { id: 'purple', name: 'Purple', oklch: 'oklch(0.72 0.19 320)' },
+  { id: 'pink', name: 'Pink', oklch: 'oklch(0.72 0.19 350)' },
+];
+
+/**
  * The value the `category` field may hold: a category id, a legacy category
  * name (backward-compat), or `uncategorized`. It is validated as a non-empty
  * string; an unresolvable value simply renders as "Uncategorised".
@@ -51,11 +81,24 @@ export function normalizeTerm(value: string): string {
   return value.trim().toLowerCase();
 }
 
-/** The default categories seeded on first run: slug ids, no terms. */
+/** Hand-picked colors for the seeded defaults, so the set reads intentionally. */
+const DEFAULT_CATEGORY_COLORS: Record<(typeof CATEGORIES)[number], string> = {
+  Groceries: 'green',
+  Health: 'red',
+  Sports: 'orange',
+  Pet: 'brown',
+  Relationships: 'pink',
+  Kid: 'yellow',
+  Utilities: 'blue',
+  Other: 'gray',
+};
+
+/** The default categories seeded on first run: slug ids, no terms, pre-assigned colors. */
 export const DEFAULT_CATEGORIES: Category[] = CATEGORIES.map((name) => ({
   id: slugify(name),
   name,
   terms: [],
+  colorId: DEFAULT_CATEGORY_COLORS[name],
 }));
 
 /** True when `value` is a legal stored category (any non-empty string). */
@@ -172,6 +215,34 @@ export function findCategoryByName(
   return categories.find((c) => c.id !== ignoreId && normalizeTerm(c.name) === n) ?? null;
 }
 
+/**
+ * The first palette color not already used by `categories`, or — once all 16
+ * are in use — `CATEGORY_PALETTE[0].id` (colors then simply repeat). Used to
+ * auto-assign a new category's color at creation time.
+ */
+export function nextAvailableColorId(categories: readonly Category[]): string {
+  const used = new Set(categories.map((c) => c.colorId));
+  const free = CATEGORY_PALETTE.find((p) => !used.has(p.id));
+  return free ? free.id : CATEGORY_PALETTE[0].id;
+}
+
+/**
+ * Resolve a category's display color: its stored `colorId` if present, else a
+ * deterministic fallback keyed by its position in `categories` (design.md).
+ * Pure — never mutates or persists; the fallback applies only until the owner
+ * explicitly sets a color.
+ */
+export function colorIdFor(category: Category, index: number): string {
+  return category.colorId ?? CATEGORY_PALETTE[index % CATEGORY_PALETTE.length].id;
+}
+
+/** Categories sorted alphabetically by name (locale-aware, case-insensitive). */
+export function sortCategoriesByName(categories: readonly Category[]): Category[] {
+  return [...categories].sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
+  );
+}
+
 /** A slug id not already used by another category (disambiguates collisions). */
 function uniqueCategoryId(base: string, categories: readonly Category[]): string {
   const seed = base || 'category';
@@ -195,7 +266,8 @@ export function withCategoryAdded(categories: readonly Category[], name: string)
   const dup = findCategoryByName(trimmed, categories);
   if (dup) throw new Error(`A category named "${dup.name}" already exists`);
   const id = uniqueCategoryId(slugify(trimmed), categories);
-  return [...categories, { id, name: trimmed, terms: [] }];
+  const colorId = nextAvailableColorId(categories);
+  return [...categories, { id, name: trimmed, terms: [], colorId }];
 }
 
 export function withCategoryRenamed(
@@ -208,6 +280,14 @@ export function withCategoryRenamed(
   const dup = findCategoryByName(trimmed, categories, id);
   if (dup) throw new Error(`A category named "${dup.name}" already exists`);
   return categories.map((c) => (c.id === id ? { ...c, name: trimmed } : c));
+}
+
+export function withCategoryColorChanged(
+  categories: readonly Category[],
+  id: string,
+  colorId: string,
+): Category[] {
+  return categories.map((c) => (c.id === id ? { ...c, colorId } : c));
 }
 
 export function withCategoryRemoved(categories: readonly Category[], id: string): Category[] {

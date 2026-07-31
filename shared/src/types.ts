@@ -5,13 +5,16 @@ export type SpendingSource = 'web' | 'voice' | 'rest';
 
 /**
  * A user-managed category: a stable `id` (kept across renames), a display
- * `name` (unique within the owner's set), and its globally-unique auto-match
- * `terms`. New categories start with no terms.
+ * `name` (unique within the owner's set), its globally-unique auto-match
+ * `terms`, and a `colorId` into `CATEGORY_PALETTE`. New categories start with
+ * no terms. Categories persisted before color support existed may lack
+ * `colorId`; use `colorIdFor` to resolve a display color for those.
  */
 export interface Category {
   id: string;
   name: string;
   terms: string[];
+  colorId: string;
 }
 
 /** The Firestore `users/{uid}` document holding the owner's category set. */

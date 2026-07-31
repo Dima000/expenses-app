@@ -1,5 +1,6 @@
 import * as React from 'react';
 import {
+  colorIdFor,
   resolveCategory,
   shortDate,
   type Category,
@@ -26,6 +27,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { CategorySelect } from '@/components/CategorySelect';
+import { CategoryColorDot } from '@/components/CategoryColorDot';
 import { assignCategory, deleteSpending } from '@/lib/spendings';
 
 interface SpendingTableProps {
@@ -143,7 +145,12 @@ export function SpendingTable({ spendings, onEdit, categories, loading }: Spendi
               </TableCell>
               <TableCell>
                 {resolved ? (
-                  <Badge variant="secondary">{resolved.name}</Badge>
+                  <Badge variant="secondary" className="gap-1.5">
+                    <CategoryColorDot
+                      colorId={colorIdFor(resolved, categories.indexOf(resolved))}
+                    />
+                    {resolved.name}
+                  </Badge>
                 ) : (
                   <div className="w-40">
                     {/* Inline categorize-later: assigning removes it from the uncategorized set.
