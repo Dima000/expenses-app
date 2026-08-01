@@ -51,4 +51,4 @@
 ## 7. Ship
 
 - [x] 7.1 Update `docs/explorations/2026-08-01-demo-mode-and-dev-sandbox.md` status to note Part 3 shipped
-- [ ] 7.2 Commit as `feat: add /demo route and demo-mode wiring (#<issue>)`, push, open PR, merge once CI is green
+- [x] 7.2 Committed, pushed, PR #29 opened — all CI checks green. **Merge left to the user** (two signed-out verification items still open).
