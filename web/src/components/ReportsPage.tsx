@@ -11,7 +11,6 @@ import { useMonthlyTrendPoints } from '@/hooks/useMonthlyTrendPoints';
 import type { PeriodUnit } from '@/lib/date';
 
 interface ReportsPageProps {
-  ownerUid: string;
   /** The owner's live categories, for resolving breakdown row colors/names. */
   categories: Category[];
   unit: PeriodUnit;
@@ -28,7 +27,6 @@ interface ReportsPageProps {
  * the dashboard's month subscription.
  */
 export function ReportsPage({
-  ownerUid,
   categories,
   unit,
   anchor,
@@ -36,7 +34,7 @@ export function ReportsPage({
   onSelectCategory,
   onBack,
 }: ReportsPageProps) {
-  const { spendings, loading } = useRangeSpendings(ownerUid, unit, anchor);
+  const { spendings, loading } = useRangeSpendings(unit, anchor);
 
   const rows = React.useMemo(
     () => groupByCategory(spendings ?? [], categories),

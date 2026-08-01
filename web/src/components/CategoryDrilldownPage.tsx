@@ -20,7 +20,6 @@ import { useMonthlyTrendPoints } from '@/hooks/useMonthlyTrendPoints';
 import type { PeriodUnit } from '@/lib/date';
 
 interface CategoryDrilldownPageProps {
-  ownerUid: string;
   /** The owner's live categories, for resolving this category's name/color
    *  and for filtering + save-time auto-categorisation in the edit form. */
   categories: Category[];
@@ -40,7 +39,6 @@ interface CategoryDrilldownPageProps {
  * updates both automatically with no separate refresh logic (design.md D2).
  */
 export function CategoryDrilldownPage({
-  ownerUid,
   categories,
   categoryId,
   unit,
@@ -48,7 +46,7 @@ export function CategoryDrilldownPage({
   onPeriodChange,
   onBack,
 }: CategoryDrilldownPageProps) {
-  const { spendings, loading } = useRangeSpendings(ownerUid, unit, anchor);
+  const { spendings, loading } = useRangeSpendings(unit, anchor);
   const [editing, setEditing] = React.useState<Spending | null>(null);
   const [formOpen, setFormOpen] = React.useState(false);
 
@@ -117,7 +115,6 @@ export function CategoryDrilldownPage({
       <SpendingForm
         open={formOpen}
         onOpenChange={setFormOpen}
-        ownerUid={ownerUid}
         categories={categories}
         editing={editing}
       />

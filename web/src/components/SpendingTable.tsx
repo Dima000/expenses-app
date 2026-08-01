@@ -29,7 +29,7 @@ import {
 import { CategorySelect } from '@/components/CategorySelect';
 import { CategoryColorDot } from '@/components/CategoryColorDot';
 import { SortableHeader } from '@/components/SortableHeader';
-import { assignCategory, deleteSpending } from '@/lib/spendings';
+import { useDataSource } from '@/lib/dataSource';
 
 interface SpendingTableProps {
   spendings: Spending[];
@@ -46,6 +46,7 @@ interface SpendingTableProps {
  * client-side view that falls back to that default when cleared.
  */
 export function SpendingTable({ spendings, onEdit, categories, loading }: SpendingTableProps) {
+  const dataSource = useDataSource();
   const [pendingDelete, setPendingDelete] = React.useState<Spending | null>(null);
   const [deleting, setDeleting] = React.useState(false);
   const [sortByCategory, setSortByCategory] = React.useState(false);
@@ -54,7 +55,7 @@ export function SpendingTable({ spendings, onEdit, categories, loading }: Spendi
     if (!pendingDelete) return;
     setDeleting(true);
     try {
-      await deleteSpending(pendingDelete.id);
+      await dataSource.deleteSpending(pendingDelete.id);
       setPendingDelete(null);
     } finally {
       setDeleting(false);
@@ -150,7 +151,7 @@ export function SpendingTable({ spendings, onEdit, categories, loading }: Spendi
                       categories={categories}
                       allowUncategorized={false}
                       placeholder="Assign…"
-                      onChange={(c: CategoryValue) => assignCategory(s.id, c)}
+                      onChange={(c: CategoryValue) => dataSource.assignCategory(s.id, c)}
                     />
                   </div>
                 )}
