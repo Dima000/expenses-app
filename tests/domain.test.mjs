@@ -17,6 +17,11 @@ import {
   colorIdFor,
   withCategoryColorChanged,
   sortCategoriesByName,
+  groupByCategory,
+  largestRemainderRound,
+  aggregateByMonth,
+  aggregateByDay,
+  niceAxisMax,
 } from '@expenses/shared';
 
 // A small owner category set used across the matcher/uniqueness tests.
@@ -230,4 +235,99 @@ test('DEFAULT_CATEGORIES: all 8 have a colorId and no two share the same color',
   assert.ok(DEFAULT_CATEGORIES.every((c) => typeof c.colorId === 'string' && c.colorId));
   const colorIds = DEFAULT_CATEGORIES.map((c) => c.colorId);
   assert.equal(new Set(colorIds).size, colorIds.length);
+});
+
+// --- Reports: category breakdown ---
+
+const spend = (amount, date, category) => ({ amount, date, category, comment: '' });
+
+test('groupByCategory: sorted by total descending, Uncategorised always last', () => {
+  const rows = groupByCategory(
+    [
+      spend(1832, '2026-07-04', 'groceries'),
+      spend(915, '2026-07-05', 'health'),
+      spend(771, '2026-07-06', 'pet'),
+      spend(5000, '2026-07-07', 'unresolvable-id'), // → uncategorized despite huge total
+    ],
+    CATS,
+  );
+  assert.deepEqual(
+    rows.map((r) => r.categoryId),
+    ['groceries', 'health', 'pet', 'uncategorized'],
+  );
+  assert.equal(rows[0].total, 1832);
+  assert.equal(rows[rows.length - 1].name, 'Uncategorised');
+});
+
+test('groupByCategory: Uncategorised bucket always present, even at zero', () => {
+  const rows = groupByCategory([spend(100, '2026-07-01', 'groceries')], CATS);
+  const uncategorized = rows.find((r) => r.categoryId === 'uncategorized');
+  assert.ok(uncategorized);
+  assert.equal(uncategorized.total, 0);
+  assert.equal(uncategorized.share, 0);
+});
+
+test('groupByCategory: share is exact (not rounded), 0 for an empty period', () => {
+  const rows = groupByCategory(
+    [spend(30, '2026-07-01', 'groceries'), spend(70, '2026-07-02', 'pet')],
+    CATS,
+  );
+  const groceries = rows.find((r) => r.categoryId === 'groceries');
+  assert.equal(groceries.share, 0.3);
+  assert.deepEqual(
+    groupByCategory([], CATS).map((r) => r.share),
+    [0],
+  );
+});
+
+// --- Reports: largest-remainder percentage rounding ---
+
+test('largestRemainderRound: sums to exactly 100 even when independent rounding would not', () => {
+  // 8 equal shares of 1/8 each floor to 12, summing to 96 — 4 points to distribute.
+  const shares = new Array(8).fill(1 / 8);
+  const pcts = largestRemainderRound(shares);
+  assert.equal(pcts.reduce((a, b) => a + b, 0), 100);
+});
+
+test('largestRemainderRound: extra points go to the largest fractional remainders', () => {
+  // .3, .3, .4 floor to 30/30/40 = 100 exactly — no remainder to distribute.
+  assert.deepEqual(largestRemainderRound([0.3, 0.3, 0.4]), [30, 30, 40]);
+  // .333, .333, .334 floor to 33/33/33 = 99 — the 1 remaining point goes to
+  // the largest fractional remainder (index 2, .334's fraction beats .333's).
+  assert.deepEqual(largestRemainderRound([0.333, 0.333, 0.334]), [33, 33, 34]);
+});
+
+test('largestRemainderRound: an empty period (all-zero shares) returns all zeros, not 100', () => {
+  assert.deepEqual(largestRemainderRound([0, 0]), [0, 0]);
+});
+
+// --- Reports: aggregation ---
+
+test('aggregateByMonth: 12 entries, only the given year counted', () => {
+  const totals = aggregateByMonth(
+    [spend(100, '2026-01-15'), spend(50, '2026-01-20'), spend(200, '2026-03-01'), spend(999, '2025-12-31')],
+    2026,
+  );
+  assert.equal(totals.length, 12);
+  assert.equal(totals[0], 150);
+  assert.equal(totals[2], 200);
+  assert.equal(totals[11], 0);
+});
+
+test('aggregateByDay: one entry per day of the month, only that month counted', () => {
+  const totals = aggregateByDay(
+    [spend(10, '2026-02-01'), spend(5, '2026-02-01'), spend(20, '2026-02-28'), spend(999, '2026-03-01')],
+    '2026-02',
+  );
+  assert.equal(totals.length, 28); // 2026 is not a leap year
+  assert.equal(totals[0], 15);
+  assert.equal(totals[27], 20);
+});
+
+test('niceAxisMax: rounds up to the smallest 1/2/5/10 step at or above the raw peak', () => {
+  assert.equal(niceAxisMax(913), 1000);
+  assert.equal(niceAxisMax(1), 1);
+  assert.equal(niceAxisMax(150), 200);
+  assert.equal(niceAxisMax(420), 500);
+  assert.equal(niceAxisMax(0), 1);
 });

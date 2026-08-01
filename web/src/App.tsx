@@ -6,18 +6,34 @@ import {
   type SpendingSource,
 } from '@expenses/shared';
 import type { User } from 'firebase/auth';
-import { LogOut, Plus, Tags } from 'lucide-react';
-import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import { BarChart3, LogOut, Plus, Tags } from 'lucide-react';
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { subscribeToMonth } from '@/lib/spendings';
 import { subscribeToCategories } from '@/lib/categories';
-import { currentMonthKey, todayString, yesterdayString } from '@/lib/date';
+import {
+  currentMonthKey,
+  currentPeriodAnchor,
+  todayString,
+  yesterdayString,
+  type PeriodUnit,
+} from '@/lib/date';
 import { SignIn } from '@/components/SignIn';
 import { MonthNav } from '@/components/MonthNav';
 import { TotalCard } from '@/components/TotalCard';
 import { SpendingTable } from '@/components/SpendingTable';
 import { SpendingForm } from '@/components/SpendingForm';
 import { CategoriesPage } from '@/components/CategoriesPage';
+import { ReportsPage } from '@/components/ReportsPage';
+import { CategoryDrilldownPage } from '@/components/CategoryDrilldownPage';
 import { VoiceButton, type VoiceCapture } from '@/components/VoiceButton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -160,6 +176,14 @@ export default function App() {
           path="/categories"
           element={<CategoriesRoute ownerUid={user.uid} categories={categories} />}
         />
+        <Route
+          path="/reports"
+          element={<ReportsRoute ownerUid={user.uid} categories={categories} />}
+        />
+        <Route
+          path="/reports/:categoryId"
+          element={<CategoryDrilldownRoute ownerUid={user.uid} categories={categories} />}
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
@@ -218,6 +242,14 @@ function Dashboard({
       <header className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Expenses</h1>
         <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Reports"
+            onClick={() => navigate('/reports')}
+          >
+            <BarChart3 />
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -314,4 +346,65 @@ interface CategoriesRouteProps {
 function CategoriesRoute({ ownerUid, categories }: CategoriesRouteProps) {
   const navigate = useNavigate();
   return <CategoriesPage ownerUid={ownerUid} categories={categories} onClose={() => navigate('/')} />;
+}
+
+interface ReportsRouteProps {
+  ownerUid: string;
+  categories: Category[];
+}
+
+/** Reads/writes the Reports period (`unit`, `anchor`) as URL query params
+ *  (app-navigation spec), defaulting to the current month when absent. */
+function ReportsRoute({ ownerUid, categories }: ReportsRouteProps) {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const unit: PeriodUnit = searchParams.get('unit') === 'year' ? 'year' : 'month';
+  const anchor = searchParams.get('anchor') || currentPeriodAnchor(unit);
+
+  return (
+    <ReportsPage
+      ownerUid={ownerUid}
+      categories={categories}
+      unit={unit}
+      anchor={anchor}
+      onPeriodChange={(nextUnit, nextAnchor) =>
+        setSearchParams({ unit: nextUnit, anchor: nextAnchor })
+      }
+      onSelectCategory={(categoryId) =>
+        navigate(`/reports/${categoryId}?unit=${unit}&anchor=${anchor}`)
+      }
+      onBack={() => navigate('/')}
+    />
+  );
+}
+
+interface CategoryDrilldownRouteProps {
+  ownerUid: string;
+  categories: Category[];
+}
+
+/** The category resource lives in the path (`/reports/:categoryId`); the
+ *  period it's viewed under stays in query params, same convention as Reports. */
+function CategoryDrilldownRoute({ ownerUid, categories }: CategoryDrilldownRouteProps) {
+  const navigate = useNavigate();
+  const { categoryId } = useParams<{ categoryId: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const unit: PeriodUnit = searchParams.get('unit') === 'year' ? 'year' : 'month';
+  const anchor = searchParams.get('anchor') || currentPeriodAnchor(unit);
+
+  if (!categoryId) return <Navigate to="/reports" replace />;
+
+  return (
+    <CategoryDrilldownPage
+      ownerUid={ownerUid}
+      categories={categories}
+      categoryId={categoryId}
+      unit={unit}
+      anchor={anchor}
+      onPeriodChange={(nextUnit, nextAnchor) =>
+        setSearchParams({ unit: nextUnit, anchor: nextAnchor })
+      }
+      onBack={() => navigate(`/reports?unit=${unit}&anchor=${anchor}`)}
+    />
+  );
 }
