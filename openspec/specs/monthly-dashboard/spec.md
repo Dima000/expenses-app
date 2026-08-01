@@ -205,3 +205,12 @@ day that falls outside the selected month therefore contributes no matches.
 - **WHEN** the selected month is not the current month and the owner activates the **Today** filter
 - **THEN** the table shows no spendings for that filter, since the current day is not in the loaded month
 
+### Requirement: Reports entry point
+
+The dashboard SHALL provide a control that navigates the owner to the Reports screen.
+
+#### Scenario: Owner opens Reports from the dashboard
+
+- **WHEN** the owner activates the Reports entry point on the dashboard
+- **THEN** the app navigates to `/reports` and shows the Reports screen
+

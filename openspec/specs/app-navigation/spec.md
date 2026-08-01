@@ -25,6 +25,20 @@ The web app SHALL use client-side routing (real URL paths, not in-memory view st
 - **WHEN** a signed-in owner loads a path that does not match any defined route
 - **THEN** the app redirects to `/`
 
+### Requirement: Reports screen has its own route
+
+The web app SHALL serve the Reports screen at `/reports`. Navigating to it SHALL push a new browser history entry, consistent with navigation to other routed screens.
+
+#### Scenario: Reports screen is reachable at its own route
+
+- **WHEN** the signed-in owner navigates to Reports from the dashboard
+- **THEN** the browser URL becomes `/reports` (optionally carrying `unit`/`anchor` query parameters) and the Reports screen is shown
+
+#### Scenario: Back button returns from Reports to the dashboard
+
+- **WHEN** the owner navigates from the dashboard to `/reports` and then triggers back navigation
+- **THEN** the app shows the dashboard at `/`, consistent with how back navigation from the categories manager behaves
+
 ### Requirement: Back navigation returns to the previous screen
 
 Navigating from the dashboard to another routed screen SHALL push a new browser history entry (not replace the current one), so that going back (via the browser back button or, in the installed PWA where there is no browser chrome, the OS back button/gesture) returns to the previous screen rather than exiting the app or the browser tab.
@@ -55,12 +69,9 @@ There SHALL be no dedicated route for sign-in. Authentication SHALL be checked b
 
 ### Requirement: View state for future screens lives in query parameters
 
-Any screen-level view state that should survive a page refresh or be shareable (for example, a period selector on a future breakdown screen) SHALL be represented as URL query parameters on that screen's route, not as additional path segments. Path segments SHALL be reserved for identifying which screen/resource is shown, not for view configuration on that screen.
+Any screen-level view state that should survive a page refresh or be shareable (for example, the period selector on the Reports screen) SHALL be represented as URL query parameters on that screen's route, not as additional path segments. Path segments SHALL be reserved for identifying which screen/resource is shown, not for view configuration on that screen.
 
-#### Scenario: A future screen's view state is a query parameter
+#### Scenario: A screen's view state is a query parameter
 
-- **WHEN** a future screen needs to persist a view selection (e.g. a period
-  such as month or year) in the URL
-- **THEN** that selection is expressed as a query parameter on the screen's
-  route (e.g. `/breakdown?unit=month&anchor=2026-07`), not as an additional
-  path segment
+- **WHEN** a screen needs to persist a view selection (e.g. the Reports screen's period, expressed as `unit` and `anchor`) in the URL
+- **THEN** that selection is expressed as a query parameter on the screen's route (e.g. `/reports?unit=month&anchor=2026-07`), not as an additional path segment
