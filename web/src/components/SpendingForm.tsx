@@ -22,13 +22,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CategorySelect } from '@/components/CategorySelect';
-import { createSpending, updateSpending } from '@/lib/spendings';
+import { useDataSource } from '@/lib/dataSource';
 import { todayString } from '@/lib/date';
 
 interface SpendingFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  ownerUid: string;
   /** The owner's live categories — for the picker and save-time auto-categorisation. */
   categories: Category[];
   /** When set, the form edits this spending; otherwise it creates a new one. */
@@ -45,13 +44,13 @@ interface SpendingFormProps {
 export function SpendingForm({
   open,
   onOpenChange,
-  ownerUid,
   categories,
   editing,
   defaultDate,
   prefill,
   addSource = 'web',
 }: SpendingFormProps) {
+  const dataSource = useDataSource();
   // Edit mode binds discrete amount/comment fields; add mode uses one free-text
   // field (`entry`) that is parsed into amount + comment on submit.
   const [amount, setAmount] = React.useState('');
@@ -112,9 +111,9 @@ export function SpendingForm({
     setSaving(true);
     try {
       if (editing) {
-        await updateSpending(editing.id, { ...categorized, needsReview: false });
+        await dataSource.updateSpending(editing.id, { ...categorized, needsReview: false });
       } else {
-        await createSpending(categorized, ownerUid, addSource);
+        await dataSource.createSpending(categorized, addSource);
       }
       onOpenChange(false);
     } catch (err) {

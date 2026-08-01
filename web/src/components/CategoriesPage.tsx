@@ -7,20 +7,12 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CategoryColorDot } from '@/components/CategoryColorDot';
-import {
-  addCategory,
-  addTerm,
-  removeCategory,
-  removeTerm,
-  renameCategory,
-  setCategoryColor,
-} from '@/lib/categories';
+import { useDataSource } from '@/lib/dataSource';
 
 const errorMessage = (err: unknown, fallback: string) =>
   err instanceof Error ? err.message : fallback;
 
 interface CategoriesPageProps {
-  ownerUid: string;
   /** The owner's live categories (from the categories subscription). */
   categories: Category[];
   /** Return to the spendings dashboard. */
@@ -29,11 +21,13 @@ interface CategoriesPageProps {
 
 /**
  * Full-page categories manager: an alphabetically-sorted list of categories,
- * each a compact row that expands to reveal its keyword editor. Writes go to
- * `lib/categories.ts`; the live subscription reflects them back through
- * `categories`. Duplicate-name / duplicate-term rejections surface inline.
+ * each a compact row that expands to reveal its keyword editor. Writes go
+ * through the active `DataSource`; the live subscription reflects them back
+ * through `categories`. Duplicate-name / duplicate-term rejections surface
+ * inline.
  */
-export function CategoriesPage({ ownerUid, categories, onClose }: CategoriesPageProps) {
+export function CategoriesPage({ categories, onClose }: CategoriesPageProps) {
+  const dataSource = useDataSource();
   const [newName, setNewName] = React.useState('');
   const [addError, setAddError] = React.useState<string | null>(null);
 
@@ -42,7 +36,7 @@ export function CategoriesPage({ ownerUid, categories, onClose }: CategoriesPage
   async function handleAdd() {
     setAddError(null);
     try {
-      await addCategory(ownerUid, categories, newName);
+      await dataSource.addCategory(newName);
       setNewName('');
     } catch (err) {
       setAddError(errorMessage(err, 'Failed to add category'));
@@ -94,7 +88,7 @@ export function CategoriesPage({ ownerUid, categories, onClose }: CategoriesPage
       ) : (
         <div className="rounded-xl border">
           {sorted.map((cat) => (
-            <CategoryRow key={cat.id} ownerUid={ownerUid} categories={categories} category={cat} />
+            <CategoryRow key={cat.id} categories={categories} category={cat} />
           ))}
         </div>
       )}
@@ -103,8 +97,7 @@ export function CategoriesPage({ ownerUid, categories, onClose }: CategoriesPage
 }
 
 interface CategoryRowProps {
-  ownerUid: string;
-  /** The full set, needed by the data-layer writers to enforce uniqueness. */
+  /** The full set, needed to resolve this row's color index. */
   categories: Category[];
   category: Category;
 }
@@ -114,7 +107,8 @@ interface CategoryRowProps {
  * error state; mounted per category (keyed by id), so there are no parent-held
  * id-keyed maps to seed or garbage-collect.
  */
-function CategoryRow({ ownerUid, categories, category }: CategoryRowProps) {
+function CategoryRow({ categories, category }: CategoryRowProps) {
+  const dataSource = useDataSource();
   const [expanded, setExpanded] = React.useState(false);
   const [editingName, setEditingName] = React.useState(false);
   const [nameDraft, setNameDraft] = React.useState(category.name);
@@ -132,7 +126,7 @@ function CategoryRow({ ownerUid, categories, category }: CategoryRowProps) {
     if (next === colorId) return;
     setError(null);
     try {
-      await setCategoryColor(ownerUid, categories, category.id, next);
+      await dataSource.setCategoryColor(category.id, next);
     } catch (err) {
       setError(errorMessage(err, 'Failed to set color'));
     }
@@ -147,7 +141,7 @@ function CategoryRow({ ownerUid, categories, category }: CategoryRowProps) {
     }
     setError(null);
     try {
-      await renameCategory(ownerUid, categories, category.id, next);
+      await dataSource.renameCategory(category.id, next);
     } catch (err) {
       setError(errorMessage(err, 'Failed to rename'));
       setNameDraft(category.name); // revert the draft
@@ -157,7 +151,7 @@ function CategoryRow({ ownerUid, categories, category }: CategoryRowProps) {
   async function handleRemove() {
     setError(null);
     try {
-      await removeCategory(ownerUid, categories, category.id);
+      await dataSource.removeCategory(category.id);
     } catch (err) {
       setError(errorMessage(err, 'Failed to remove'));
     }
@@ -166,7 +160,7 @@ function CategoryRow({ ownerUid, categories, category }: CategoryRowProps) {
   async function handleAddTerm() {
     setError(null);
     try {
-      await addTerm(ownerUid, categories, category.id, termDraft);
+      await dataSource.addTerm(category.id, termDraft);
       setTermDraft('');
     } catch (err) {
       setError(errorMessage(err, 'Failed to add term'));
@@ -176,7 +170,7 @@ function CategoryRow({ ownerUid, categories, category }: CategoryRowProps) {
   async function handleRemoveTerm(term: string) {
     setError(null);
     try {
-      await removeTerm(ownerUid, categories, category.id, term);
+      await dataSource.removeTerm(category.id, term);
     } catch (err) {
       setError(errorMessage(err, 'Failed to remove term'));
     }

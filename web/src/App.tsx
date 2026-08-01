@@ -5,7 +5,6 @@ import {
   type Spending,
   type SpendingSource,
 } from '@expenses/shared';
-import type { User } from 'firebase/auth';
 import { BarChart3, LogOut, Plus, Tags } from 'lucide-react';
 import {
   BrowserRouter,
@@ -17,8 +16,8 @@ import {
   useSearchParams,
 } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { subscribeToMonth } from '@/lib/spendings';
-import { subscribeToCategories } from '@/lib/categories';
+import { DataSourceProvider } from '@/lib/dataSource';
+import { FirestoreDataSource } from '@/lib/firestoreDataSource';
 import {
   currentMonthKey,
   currentPeriodAnchor,
@@ -67,22 +66,29 @@ export default function App() {
   const [addPrefill, setAddPrefill] = React.useState<VoiceCapture | null>(null);
   const [addSource, setAddSource] = React.useState<SpendingSource>('web');
 
+  // One `DataSource` per signed-in owner, memoized on `user.uid` so it's
+  // stable across re-renders and only rebuilt if the signed-in owner changes.
+  const dataSource = React.useMemo(
+    () => (user ? new FirestoreDataSource(user.uid) : null),
+    [user],
+  );
+
   // Live subscription to the selected month for the signed-in owner. Reset to
   // the loading state (`null`) whenever the owner or month changes.
   React.useEffect(() => {
     setSpendings(null);
-    if (!user) return;
-    return subscribeToMonth(user.uid, month, setSpendings);
-  }, [user, month]);
+    if (!dataSource) return;
+    return dataSource.subscribeToMonth(month, setSpendings);
+  }, [dataSource, month]);
 
   // Live subscription to the owner's categories (seeds defaults on first run).
   React.useEffect(() => {
-    if (!user) {
+    if (!dataSource) {
       setCategories([]);
       return;
     }
-    return subscribeToCategories(user.uid, setCategories);
-  }, [user]);
+    return dataSource.subscribeToCategories(setCategories);
+  }, [dataSource]);
 
   const spendingsLoading = spendings === null;
   // A spending counts as uncategorised when its stored value doesn't resolve to
@@ -140,58 +146,58 @@ export default function App() {
   if (loading) {
     return <div className="flex min-h-dvh items-center justify-center text-muted-foreground">Loading…</div>;
   }
-  if (!user) return <SignIn onSignIn={signIn} />;
+  if (!user || !dataSource) return <SignIn onSignIn={signIn} />;
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <Dashboard
-              user={user}
-              logOut={logOut}
-              month={month}
-              setMonth={setMonth}
-              spendings={spendings}
-              spendingsLoading={spendingsLoading}
-              total={total}
-              categories={categories}
-              activeFilter={activeFilter}
-              toggleFilter={toggleFilter}
-              uncategorizedCount={uncategorizedCount}
-              visible={visible}
-              openEdit={openEdit}
-              openAdd={openAdd}
-              openVoiceReview={openVoiceReview}
-              formOpen={formOpen}
-              setFormOpen={setFormOpen}
-              editing={editing}
-              addPrefill={addPrefill}
-              addSource={addSource}
-            />
-          }
-        />
-        <Route
-          path="/categories"
-          element={<CategoriesRoute ownerUid={user.uid} categories={categories} />}
-        />
-        <Route
-          path="/reports"
-          element={<ReportsRoute ownerUid={user.uid} categories={categories} />}
-        />
-        <Route
-          path="/reports/:categoryId"
-          element={<CategoryDrilldownRoute ownerUid={user.uid} categories={categories} />}
-        />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+    <DataSourceProvider value={dataSource}>
+      <BrowserRouter>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <Dashboard
+                logOut={logOut}
+                month={month}
+                setMonth={setMonth}
+                spendings={spendings}
+                spendingsLoading={spendingsLoading}
+                total={total}
+                categories={categories}
+                activeFilter={activeFilter}
+                toggleFilter={toggleFilter}
+                uncategorizedCount={uncategorizedCount}
+                visible={visible}
+                openEdit={openEdit}
+                openAdd={openAdd}
+                openVoiceReview={openVoiceReview}
+                formOpen={formOpen}
+                setFormOpen={setFormOpen}
+                editing={editing}
+                addPrefill={addPrefill}
+                addSource={addSource}
+              />
+            }
+          />
+          <Route
+            path="/categories"
+            element={<CategoriesRoute categories={categories} />}
+          />
+          <Route
+            path="/reports"
+            element={<ReportsRoute categories={categories} />}
+          />
+          <Route
+            path="/reports/:categoryId"
+            element={<CategoryDrilldownRoute categories={categories} />}
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </DataSourceProvider>
   );
 }
 
 interface DashboardProps {
-  user: User;
   logOut: () => void;
   month: string;
   setMonth: (month: string) => void;
@@ -214,7 +220,6 @@ interface DashboardProps {
 }
 
 function Dashboard({
-  user,
   logOut,
   month,
   setMonth,
@@ -328,7 +333,6 @@ function Dashboard({
       <SpendingForm
         open={formOpen}
         onOpenChange={setFormOpen}
-        ownerUid={user.uid}
         categories={categories}
         editing={editing}
         prefill={addPrefill}
@@ -339,23 +343,21 @@ function Dashboard({
 }
 
 interface CategoriesRouteProps {
-  ownerUid: string;
   categories: Category[];
 }
 
-function CategoriesRoute({ ownerUid, categories }: CategoriesRouteProps) {
+function CategoriesRoute({ categories }: CategoriesRouteProps) {
   const navigate = useNavigate();
-  return <CategoriesPage ownerUid={ownerUid} categories={categories} onClose={() => navigate('/')} />;
+  return <CategoriesPage categories={categories} onClose={() => navigate('/')} />;
 }
 
 interface ReportsRouteProps {
-  ownerUid: string;
   categories: Category[];
 }
 
 /** Reads/writes the Reports period (`unit`, `anchor`) as URL query params
  *  (app-navigation spec), defaulting to the current month when absent. */
-function ReportsRoute({ ownerUid, categories }: ReportsRouteProps) {
+function ReportsRoute({ categories }: ReportsRouteProps) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const unit: PeriodUnit = searchParams.get('unit') === 'year' ? 'year' : 'month';
@@ -363,7 +365,6 @@ function ReportsRoute({ ownerUid, categories }: ReportsRouteProps) {
 
   return (
     <ReportsPage
-      ownerUid={ownerUid}
       categories={categories}
       unit={unit}
       anchor={anchor}
@@ -379,13 +380,12 @@ function ReportsRoute({ ownerUid, categories }: ReportsRouteProps) {
 }
 
 interface CategoryDrilldownRouteProps {
-  ownerUid: string;
   categories: Category[];
 }
 
 /** The category resource lives in the path (`/reports/:categoryId`); the
  *  period it's viewed under stays in query params, same convention as Reports. */
-function CategoryDrilldownRoute({ ownerUid, categories }: CategoryDrilldownRouteProps) {
+function CategoryDrilldownRoute({ categories }: CategoryDrilldownRouteProps) {
   const navigate = useNavigate();
   const { categoryId } = useParams<{ categoryId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -396,7 +396,6 @@ function CategoryDrilldownRoute({ ownerUid, categories }: CategoryDrilldownRoute
 
   return (
     <CategoryDrilldownPage
-      ownerUid={ownerUid}
       categories={categories}
       categoryId={categoryId}
       unit={unit}
