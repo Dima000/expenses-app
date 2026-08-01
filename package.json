@@ -15,6 +15,7 @@
     "dev": "npm run dev --workspace web",
     "emulators": "firebase emulators:start",
     "test:domain": "node --test tests/domain.test.mjs",
+    "test:web": "npm run test --workspace web",
     "test:rules": "firebase emulators:exec --only firestore --project demo-expenses \"node --test tests/rules.test.mjs\"",
     "test:rest": "firebase emulators:exec --only functions,firestore --project demo-expenses \"node --test tests/rest.test.mjs\""
   },
