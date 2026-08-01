@@ -1,7 +1,13 @@
 # Demo mode: shareable link + dev sandbox + marketing screenshots
 
 - **Date:** 2026-08-01
-- **Status:** Exploration — direction settled in conversation, not yet split into change proposals
+- **Status:** Parts 1–3 shipped (`adopt-data-source-interface` #27,
+  `add-demo-data-source` #28, `add-demo-routing`). Part 4 re-explored 2026-08-02
+  and simplified — see "App modes" and "Proposed stack" below for the settled
+  design. Part 3's three open questions were resolved in its design.md: banner
+  copy is "Demo mode — sample data, nothing is saved"; the shared route tree is
+  a function returning a JSX fragment; internal links use an explicit
+  `withBase()` prefix helper.
 - **Trigger:** friends without an account (or any data) can't explore the app. Want
   a "try it" path off the sign-in screen, seeded with fake data, that also turns
   out to double as a local dev sandbox and a source of clean marketing screenshots.
@@ -73,39 +79,90 @@ in-memory array + listener set, firing listeners via microtask on mutation to
 match Firestore's async snapshot timing (so the two implementations don't
 develop different assumptions and mask timing bugs).
 
-## App modes
+## App modes: demo is a data-source override, not an auth state
+
+An earlier draft of this doc modelled a 3-valued `signed-out | demo | authed`
+state machine. That conflates two independent things and forces every question
+into a 2×2 matrix with one very awkward cell (authed user + demo link), which
+is where an interstitial modal, a log-out→demo transition, and an auth-loading
+race all had to be invented. Since `DataSource` is an interface, *which
+implementation is provided* has nothing to do with auth. Two orthogonal axes:
 
 ```
-              ┌───────────────┐
-   loading ──▶│  signed-out   │──── click "Try the demo" ───────┐
-              └───────┬───────┘                                 │
-                      │                                          ▼
-              Google sign-in                              ┌────────────┐
-                      │                                    │    demo    │
-                      ▼                                    └─────┬──────┘
-              ┌───────────────┐                                  │
-              │    authed     │◀──── "Exit Demo" (banner) ───────┘
-              └───────────────┘
+authState : 'loading' | 'signed-out' | 'authed'   ← owned by useAuth, untouched
+isDemo    : boolean                                ← owned by the URL
+
+dataSource = isDemo ? DemoDataSource()
+                    : (authed ? FirestoreDataSource(user.uid) : none)
 ```
 
-- `authed` → `FirestoreDataSource(user.uid)`
-- `demo` → `DemoDataSource()` (in-memory, never touches Firestore or its
-  IndexedDB persistence cache — must stay fully isolated from real data)
+`DemoDataSource` is in-memory and never touches Firestore or its IndexedDB
+persistence cache — it imports only `@expenses/shared`, `demoSeedData`, `date`,
+and `dataSource`, so no Firestore path exists. `FirestoreDataSource` is simply
+never constructed while demoing.
+
+**`isDemo` wins unconditionally, including for signed-in users.** An
+authenticated visitor who opens a demo link sees the demo, with the banner, and
+"Exit Demo" returns them straight to their real dashboard — no logout, no
+re-login, no modal. This is the strongest available fix for the original
+concern ("redirecting straight to their dashboard makes the link look broken to
+anyone with an account"): the link now behaves identically for everyone,
+including a friend who signed up for real and later wants to show someone else.
+It also means demo rendering never waits on Firebase auth resolution.
 
 ## Entry points
 
-- **`/demo` route** — clean shareable URL for a README/portfolio link. On
-  activation, normalize the URL back to `/` immediately, so a refresh never
-  silently re-enters or re-exits demo based on stale query state, and exiting
-  lands on a plain sign-in URL.
+- **`/demo` route** — clean shareable URL for a README/portfolio link. The URL
+  is *not* normalized away; demo-ness is read continuously from the URL rather
+  than consumed once, which is what removes the need for any imperative
+  "activate demo" step.
 - **"Try the demo" link on the sign-in screen**, secondary to "Continue with
-  Google".
-- **Already-authenticated user hits `/demo`:** never silently redirect either
-  way (redirecting straight to their dashboard makes the link look broken to
-  anyone with an account, including a friend who signed up for real and later
-  wants to show someone else the demo). Show an interstitial: *"You're signed
-  in — log out and view the demo, or back to your dashboard?"* with both
-  choices explicit.
+  Google". It's an ordinary link to `/demo` — same code path, no separate entry
+  mechanism.
+
+## Routing: path prefix over query param
+
+Demo-ness lives in the **path** (`/demo/*`), not a `?demo=1` query param. Both
+persist across navigation, but the path is immune to something the param isn't:
+`ReportsRoute` / `CategoryDrilldownRoute` call `setSearchParams({unit, anchor})`,
+and React Router's setter *replaces the whole query string* — a param-based
+design would silently drop demo mid-browse on any period switch, and would
+leave a permanent footgun for anyone later reaching for plain `useSearchParams`.
+
+|                              | `?demo=1`                    | `/demo/*`   |
+| ---------------------------- | ---------------------------- | ----------- |
+| Hook wraps `navigate`        | yes                          | yes (prefix)|
+| Hook wraps `setSearchParams` | **yes**                      | **no**      |
+| Existing `unit`/`anchor` code| must be modified             | **untouched**|
+| Latent footgun               | raw `setSearchParams` drops it | none      |
+
+The route tree is defined once and mounted at two bases — not duplicated:
+
+```tsx
+const appRoutes = () => (<>
+  <Route index element={<Dashboard/>}/>
+  <Route path="categories" element={<CategoriesRoute/>}/>
+  <Route path="reports" element={<ReportsRoute/>}/>
+  <Route path="reports/:categoryId" element={<CategoryDrilldownRoute/>}/>
+</>);
+
+<Routes>
+  <Route path="/demo">{appRoutes()}</Route>
+  <Route path="/">{appRoutes()}</Route>
+</Routes>
+```
+
+`BrowserRouter` mounts unconditionally (today it only wraps the authed branch),
+so `isDemo` can be derived inside it. The signed-out gate then collapses to a
+single short-circuit above `<Routes>`:
+
+```tsx
+if (!isDemo && authState === 'signed-out') return <SignIn />;
+```
+
+One line, no per-route guard component. New routes are protected automatically,
+behaviour matches today (signed-out sees `SignIn` regardless of path), and the
+attempted URL survives sign-in instead of being redirected away.
 
 ## Exit UX
 
@@ -127,10 +184,23 @@ Exit is a pure client-side state transition (`mode → signed-out`, navigate to
 
 ## Persistence: none, on purpose
 
-Originally proposed localStorage/IndexedDB, but the actual requirement
-("refresh logs you out of demo") argues for plain in-memory state instead —
-survives SPA navigation between `/`, `/categories`, `/reports` (no remount),
-gone on hard refresh, no storage cleanup to ever worry about.
+No localStorage/IndexedDB — demo data is plain in-memory state, so there is no
+storage cleanup to ever worry about and no way for demo rows to outlive the tab.
+
+Note the two things that were originally coupled and are now decoupled:
+
+- **Demo *mode* survives a hard refresh** — it's in the URL, so reloading
+  `/demo/reports` stays in the demo. (Earlier drafts had refresh eject you;
+  that requirement was dropped deliberately.)
+- **Demo *edits* do not survive a refresh** — a full remount re-derives
+  `isDemo` and constructs a fresh `DemoDataSource`, re-seeded from scratch.
+
+So a visitor who adds a spending and then reloads keeps the demo but loses that
+row. Accepted: the existing "Demo mode — nothing is saved" banner copy covers
+it; no separate refresh warning.
+
+Exiting demo is a navigation out of the `/demo` subtree, nothing more — mode
+re-derives on its own, and there's no state to flush since nothing persisted.
 
 ## Seed data
 
@@ -166,21 +236,38 @@ gone on hard refresh, no storage cleanup to ever worry about.
    testable in isolation (and can share contract tests with
    `FirestoreDataSource` since both implement the same interface).
 
-3. **New feature — mode state machine + demo wiring.**
-   `signed-out / demo / authed` app state, `/demo` route (normalizes to `/`),
-   demo banner with the "Exit Demo" control, and the already-authenticated
-   interstitial modal. This is where `DemoDataSource` actually becomes
-   reachable by a user.
+3. **New feature — `/demo` routing + demo wiring.**
+   Mount `BrowserRouter` unconditionally, mount the shared route tree at both
+   `/` and `/demo`, derive `isDemo` from the URL, select the `DataSource`
+   accordingly, and add the demo banner with its "Exit Demo" control. This is
+   where `DemoDataSource` actually becomes reachable by a user.
+
+   Surface area, after simplification:
+
+   ```
+   useIsDemo()      — 1 line, reads the URL (no context/provider needed)
+   nav base helper  — ~3 lines, prefixes internal links with the current base
+   DemoBanner       — the only exit control; header sign-out hidden in demo
+   useMemo(() => isDemo ? new DemoDataSource() : null, [isDemo])
+   short-circuit    — if (!isDemo && signed-out) return <SignIn/>
+   ```
+
+   Explicitly *not* built, versus earlier drafts: no interstitial modal, no
+   log-out→demo transition, no auth-loading race handling, no `RequireSession`
+   guard, no mode-context provider, no `setSearchParams` wrapper.
 
 4. **Enhancement — sign-in entry point + polish.**
-   "Try the demo" link on the sign-in screen, banner/modal copy, aria-labels.
+   "Try the demo" link on the sign-in screen, banner copy, aria-labels.
    Also where dev-sandbox and marketing-screenshot usage get validated
    end-to-end, since they're free consequences of Parts 2–3 rather than
    separate scope.
 
 ## Open questions for whoever writes the change proposals
 
-- Exact banner/modal copy.
-- Whether the seed generator runs fresh (same PRNG seed) on every `/demo`
-  visit, or is a literal committed fixture object — both are "deterministic"
-  but have different maintenance tradeoffs; worth deciding in Part 2's design.
+- Exact banner copy (working text: "Demo mode — nothing is saved").
+- Whether the shared route tree is reused via a function returning a JSX
+  fragment (as sketched) or a plain route-config array — cosmetic, decide in
+  Part 3's design.
+- Whether internal links use an explicit base-prefix helper (recommended:
+  explicit and debuggable) or React Router relative navigation (`navigate('reports')`,
+  zero helper but subtler semantics — relative to route match, not path).

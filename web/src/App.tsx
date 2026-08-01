@@ -11,6 +11,7 @@ import {
   Navigate,
   Route,
   Routes,
+  useLocation,
   useNavigate,
   useParams,
   useSearchParams,
@@ -18,6 +19,8 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { DataSourceProvider } from '@/lib/dataSource';
 import { FirestoreDataSource } from '@/lib/firestoreDataSource';
+import { DemoDataSource } from '@/lib/demoDataSource';
+import { DEMO_BASE, ROOT_BASE, isDemoPath, withBase } from '@/lib/demoRoutes';
 import {
   currentMonthKey,
   currentPeriodAnchor,
@@ -33,6 +36,7 @@ import { SpendingForm } from '@/components/SpendingForm';
 import { CategoriesPage } from '@/components/CategoriesPage';
 import { ReportsPage } from '@/components/ReportsPage';
 import { CategoryDrilldownPage } from '@/components/CategoryDrilldownPage';
+import { DemoBanner } from '@/components/DemoBanner';
 import { VoiceButton, type VoiceCapture } from '@/components/VoiceButton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -50,7 +54,24 @@ type FilterId = 'uncategorized' | 'today' | 'yesterday';
 const activeFilterClass =
   'border-primary bg-primary text-primary-foreground hover:bg-primary/90';
 
+/** True while the current URL is inside the demo subtree. Demo-ness is read
+ *  from the URL on every render — there is no stored flag that can drift. */
+function useIsDemo(): boolean {
+  return isDemoPath(useLocation().pathname);
+}
+
+/** The router mounts unconditionally so the URL is readable *before* the auth
+ *  gate runs — that's what lets `/demo` render without waiting on Firebase. */
 export default function App() {
+  return (
+    <BrowserRouter>
+      <AppShell />
+    </BrowserRouter>
+  );
+}
+
+function AppShell() {
+  const isDemo = useIsDemo();
   const { user, loading, signIn, logOut } = useAuth();
   const [month, setMonth] = React.useState(currentMonthKey);
   // `null` = the first snapshot for the current (user, month) hasn't arrived yet;
@@ -66,12 +87,21 @@ export default function App() {
   const [addPrefill, setAddPrefill] = React.useState<VoiceCapture | null>(null);
   const [addSource, setAddSource] = React.useState<SpendingSource>('web');
 
+  // Two separate memos on purpose. The demo source depends on `isDemo` alone,
+  // so auth resolving mid-demo (`null` → `User`) can't rebuild it and silently
+  // wipe whatever the visitor just added. The Firestore source is gated on
+  // `!isDemo` so it is genuinely never constructed while demoing.
+  const demoSource = React.useMemo(
+    () => (isDemo ? new DemoDataSource() : null),
+    [isDemo],
+  );
   // One `DataSource` per signed-in owner, memoized on `user.uid` so it's
   // stable across re-renders and only rebuilt if the signed-in owner changes.
-  const dataSource = React.useMemo(
-    () => (user ? new FirestoreDataSource(user.uid) : null),
-    [user],
+  const firestoreSource = React.useMemo(
+    () => (!isDemo && user ? new FirestoreDataSource(user.uid) : null),
+    [isDemo, user],
   );
+  const dataSource = isDemo ? demoSource : firestoreSource;
 
   // Live subscription to the selected month for the signed-in owner. Reset to
   // the loading state (`null`) whenever the owner or month changes.
@@ -143,61 +173,82 @@ export default function App() {
     setFormOpen(true);
   }, []);
 
-  if (loading) {
+  // Both gates are bypassed in the demo: it renders immediately, signed in or
+  // out, without waiting on auth to resolve. One short-circuit each — no
+  // per-route guard, so new routes are protected automatically and the
+  // requested URL survives sign-in.
+  if (!isDemo && loading) {
     return <div className="flex min-h-dvh items-center justify-center text-muted-foreground">Loading…</div>;
   }
-  if (!user || !dataSource) return <SignIn onSignIn={signIn} />;
+  if (!isDemo && (!user || !dataSource)) return <SignIn onSignIn={signIn} />;
+  if (!dataSource) return null; // unreachable: the gates above cover every case
+
+  // The same route tree, declared once and mounted at both bases. A parent
+  // `<Route>` with no `element` renders its matched child directly, so no
+  // layout component is needed. Demo is listed first for readability; React
+  // Router ranks `/demo` above `/` for demo paths regardless of order.
+  const appRoutes = (base: string) => (
+    <>
+      <Route
+        index
+        element={
+          <Dashboard
+            base={base}
+            isDemo={base === DEMO_BASE}
+            logOut={logOut}
+            month={month}
+            setMonth={setMonth}
+            spendings={spendings}
+            spendingsLoading={spendingsLoading}
+            total={total}
+            categories={categories}
+            activeFilter={activeFilter}
+            toggleFilter={toggleFilter}
+            uncategorizedCount={uncategorizedCount}
+            visible={visible}
+            openEdit={openEdit}
+            openAdd={openAdd}
+            openVoiceReview={openVoiceReview}
+            formOpen={formOpen}
+            setFormOpen={setFormOpen}
+            editing={editing}
+            addPrefill={addPrefill}
+            addSource={addSource}
+          />
+        }
+      />
+      <Route
+        path="categories"
+        element={<CategoriesRoute base={base} categories={categories} />}
+      />
+      <Route
+        path="reports"
+        element={<ReportsRoute base={base} categories={categories} />}
+      />
+      <Route
+        path="reports/:categoryId"
+        element={<CategoryDrilldownRoute base={base} categories={categories} />}
+      />
+      {/* Per-base catch-all: an unknown `/demo/…` lands on `/demo`, not `/`. */}
+      <Route path="*" element={<Navigate to={withBase(base, '/')} replace />} />
+    </>
+  );
 
   return (
     <DataSourceProvider value={dataSource}>
-      <BrowserRouter>
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <Dashboard
-                logOut={logOut}
-                month={month}
-                setMonth={setMonth}
-                spendings={spendings}
-                spendingsLoading={spendingsLoading}
-                total={total}
-                categories={categories}
-                activeFilter={activeFilter}
-                toggleFilter={toggleFilter}
-                uncategorizedCount={uncategorizedCount}
-                visible={visible}
-                openEdit={openEdit}
-                openAdd={openAdd}
-                openVoiceReview={openVoiceReview}
-                formOpen={formOpen}
-                setFormOpen={setFormOpen}
-                editing={editing}
-                addPrefill={addPrefill}
-                addSource={addSource}
-              />
-            }
-          />
-          <Route
-            path="/categories"
-            element={<CategoriesRoute categories={categories} />}
-          />
-          <Route
-            path="/reports"
-            element={<ReportsRoute categories={categories} />}
-          />
-          <Route
-            path="/reports/:categoryId"
-            element={<CategoryDrilldownRoute categories={categories} />}
-          />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
+      {isDemo && <DemoBanner />}
+      <Routes>
+        <Route path={DEMO_BASE}>{appRoutes(DEMO_BASE)}</Route>
+        <Route path={ROOT_BASE}>{appRoutes(ROOT_BASE)}</Route>
+      </Routes>
     </DataSourceProvider>
   );
 }
 
 interface DashboardProps {
+  /** Path prefix for in-app navigation — `/` normally, `/demo` in the demo. */
+  base: string;
+  isDemo: boolean;
   logOut: () => void;
   month: string;
   setMonth: (month: string) => void;
@@ -220,6 +271,8 @@ interface DashboardProps {
 }
 
 function Dashboard({
+  base,
+  isDemo,
   logOut,
   month,
   setMonth,
@@ -251,7 +304,7 @@ function Dashboard({
             variant="ghost"
             size="icon"
             aria-label="Reports"
-            onClick={() => navigate('/reports')}
+            onClick={() => navigate(withBase(base, '/reports'))}
           >
             <BarChart3 />
           </Button>
@@ -259,13 +312,17 @@ function Dashboard({
             variant="ghost"
             size="icon"
             aria-label="Manage categories"
-            onClick={() => navigate('/categories')}
+            onClick={() => navigate(withBase(base, '/categories'))}
           >
             <Tags />
           </Button>
-          <Button variant="ghost" size="icon" aria-label="Sign out" onClick={logOut}>
-            <LogOut />
-          </Button>
+          {/* No sign-out in the demo — the banner's "Exit demo" is the only
+              way out, so the two actions never look interchangeable. */}
+          {!isDemo && (
+            <Button variant="ghost" size="icon" aria-label="Sign out" onClick={logOut}>
+              <LogOut />
+            </Button>
+          )}
         </div>
       </header>
 
@@ -343,21 +400,28 @@ function Dashboard({
 }
 
 interface CategoriesRouteProps {
+  base: string;
   categories: Category[];
 }
 
-function CategoriesRoute({ categories }: CategoriesRouteProps) {
+function CategoriesRoute({ base, categories }: CategoriesRouteProps) {
   const navigate = useNavigate();
-  return <CategoriesPage categories={categories} onClose={() => navigate('/')} />;
+  return (
+    <CategoriesPage
+      categories={categories}
+      onClose={() => navigate(withBase(base, '/'))}
+    />
+  );
 }
 
 interface ReportsRouteProps {
+  base: string;
   categories: Category[];
 }
 
 /** Reads/writes the Reports period (`unit`, `anchor`) as URL query params
  *  (app-navigation spec), defaulting to the current month when absent. */
-function ReportsRoute({ categories }: ReportsRouteProps) {
+function ReportsRoute({ base, categories }: ReportsRouteProps) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const unit: PeriodUnit = searchParams.get('unit') === 'year' ? 'year' : 'month';
@@ -372,27 +436,28 @@ function ReportsRoute({ categories }: ReportsRouteProps) {
         setSearchParams({ unit: nextUnit, anchor: nextAnchor })
       }
       onSelectCategory={(categoryId) =>
-        navigate(`/reports/${categoryId}?unit=${unit}&anchor=${anchor}`)
+        navigate(withBase(base, `/reports/${categoryId}?unit=${unit}&anchor=${anchor}`))
       }
-      onBack={() => navigate('/')}
+      onBack={() => navigate(withBase(base, '/'))}
     />
   );
 }
 
 interface CategoryDrilldownRouteProps {
+  base: string;
   categories: Category[];
 }
 
 /** The category resource lives in the path (`/reports/:categoryId`); the
  *  period it's viewed under stays in query params, same convention as Reports. */
-function CategoryDrilldownRoute({ categories }: CategoryDrilldownRouteProps) {
+function CategoryDrilldownRoute({ base, categories }: CategoryDrilldownRouteProps) {
   const navigate = useNavigate();
   const { categoryId } = useParams<{ categoryId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const unit: PeriodUnit = searchParams.get('unit') === 'year' ? 'year' : 'month';
   const anchor = searchParams.get('anchor') || currentPeriodAnchor(unit);
 
-  if (!categoryId) return <Navigate to="/reports" replace />;
+  if (!categoryId) return <Navigate to={withBase(base, '/reports')} replace />;
 
   return (
     <CategoryDrilldownPage
@@ -403,7 +468,7 @@ function CategoryDrilldownRoute({ categories }: CategoryDrilldownRouteProps) {
       onPeriodChange={(nextUnit, nextAnchor) =>
         setSearchParams({ unit: nextUnit, anchor: nextAnchor })
       }
-      onBack={() => navigate(`/reports?unit=${unit}&anchor=${anchor}`)}
+      onBack={() => navigate(withBase(base, `/reports?unit=${unit}&anchor=${anchor}`))}
     />
   );
 }
