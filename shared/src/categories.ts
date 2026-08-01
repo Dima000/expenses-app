@@ -236,6 +236,28 @@ export function colorIdFor(category: Category, index: number): string {
   return category.colorId ?? CATEGORY_PALETTE[index % CATEGORY_PALETTE.length].id;
 }
 
+/** A category's resolved display name and color, or the Uncategorised bucket's. */
+export interface CategoryDisplay {
+  name: string;
+  colorId: string;
+}
+
+/**
+ * Resolve a category id (or `UNCATEGORIZED`, or an id no longer present) to
+ * its display name/color in one pass — the name/colorId lookup the Reports
+ * breakdown and drill-down both need, without a separate `find` + `indexOf`
+ * scan of `categories`.
+ */
+export function resolveCategoryDisplay(
+  categoryId: string,
+  categories: readonly Category[],
+): CategoryDisplay {
+  const index = categories.findIndex((c) => c.id === categoryId);
+  if (index === -1) return { name: 'Uncategorised', colorId: 'gray' };
+  const category = categories[index];
+  return { name: category.name, colorId: colorIdFor(category, index) };
+}
+
 /** Categories sorted alphabetically by name (locale-aware, case-insensitive). */
 export function sortCategoriesByName(categories: readonly Category[]): Category[] {
   return [...categories].sort((a, b) =>

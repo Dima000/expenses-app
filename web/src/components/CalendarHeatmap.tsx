@@ -15,6 +15,11 @@ const LEGEND_STEPS = [0.15, 0.4, 0.65, 1];
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
+/** Apply an alpha fraction to an OKLCH color string, e.g. for a 40% swatch. */
+function withAlpha(color: string, fraction: number): string {
+  return color.replace(')', ` / ${Math.round(fraction * 100)}%)`);
+}
+
 /**
  * Monday-first calendar heatmap of one category's daily spend for a month
  * (design.md D10): single-hue intensity from the category's own colour,
@@ -37,7 +42,7 @@ export function CalendarHeatmap({ monthKey, dailyTotals, colorId }: CalendarHeat
   function cellStyle(total: number) {
     if (total <= 0 || peak <= 0) return undefined;
     const intensity = Math.max(total / peak, 0.15);
-    return { backgroundColor: color.replace(')', ` / ${Math.round(intensity * 100)}%)`) };
+    return { backgroundColor: withAlpha(color, intensity) };
   }
 
   return (
@@ -68,7 +73,7 @@ export function CalendarHeatmap({ monthKey, dailyTotals, colorId }: CalendarHeat
             <div
               key={v}
               className="size-3 rounded-sm"
-              style={{ backgroundColor: color.replace(')', ` / ${Math.round(v * 100)}%)`) }}
+              style={{ backgroundColor: withAlpha(color, v) }}
             />
           ))}
         </div>

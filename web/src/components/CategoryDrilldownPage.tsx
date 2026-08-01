@@ -1,11 +1,9 @@
 import * as React from 'react';
 import { ArrowLeft } from 'lucide-react';
 import {
-  UNCATEGORIZED,
   aggregateByDay,
-  aggregateByMonth,
-  colorIdFor,
-  resolveCategory,
+  resolveCategoryDisplay,
+  spendingsForCategory,
   type Category,
   type Spending,
 } from '@expenses/shared';
@@ -13,12 +11,12 @@ import { Button } from '@/components/ui/button';
 import { CategoryColorDot, oklchForColorId } from '@/components/CategoryColorDot';
 import { TotalCard } from '@/components/TotalCard';
 import { PeriodNav } from '@/components/PeriodNav';
-import { TrendBarChart, type TrendBarChartPoint } from '@/components/TrendBarChart';
+import { TrendBarChart } from '@/components/TrendBarChart';
 import { CalendarHeatmap } from '@/components/CalendarHeatmap';
 import { DrilldownTransactionsTable } from '@/components/DrilldownTransactionsTable';
 import { SpendingForm } from '@/components/SpendingForm';
 import { useRangeSpendings } from '@/hooks/useRangeSpendings';
-import { MONTH_FULL, MONTH_SHORT } from '@/lib/months';
+import { useMonthlyTrendPoints } from '@/hooks/useMonthlyTrendPoints';
 import type { PeriodUnit } from '@/lib/date';
 
 interface CategoryDrilldownPageProps {
@@ -54,18 +52,11 @@ export function CategoryDrilldownPage({
   const [editing, setEditing] = React.useState<Spending | null>(null);
   const [formOpen, setFormOpen] = React.useState(false);
 
-  const isUncategorized = categoryId === UNCATEGORIZED;
-  const category = isUncategorized ? null : (categories.find((c) => c.id === categoryId) ?? null);
-  const categoryName = category ? category.name : 'Uncategorised';
-  const colorId = category ? colorIdFor(category, categories.indexOf(category)) : 'gray';
+  const { name: categoryName, colorId } = resolveCategoryDisplay(categoryId, categories);
 
   const filtered = React.useMemo(
-    () =>
-      (spendings ?? []).filter((s) => {
-        const resolved = resolveCategory(s.category, categories);
-        return isUncategorized ? resolved === null : resolved?.id === categoryId;
-      }),
-    [spendings, categories, categoryId, isUncategorized],
+    () => spendingsForCategory(spendings ?? [], categoryId, categories),
+    [spendings, categories, categoryId],
   );
 
   const total = React.useMemo(
@@ -73,19 +64,7 @@ export function CategoryDrilldownPage({
     [filtered],
   );
 
-  const year = Number(unit === 'year' ? anchor : anchor.slice(0, 4));
-  const monthlyPoints: TrendBarChartPoint[] = React.useMemo(() => {
-    if (unit !== 'year') return [];
-    const totals = aggregateByMonth(filtered, year);
-    const now = new Date();
-    return totals.map((t, i) => ({
-      key: String(i),
-      label: MONTH_FULL[i],
-      shortLabel: MONTH_SHORT[i],
-      total: t,
-      occurred: year < now.getFullYear() || (year === now.getFullYear() && i <= now.getMonth()),
-    }));
-  }, [filtered, unit, year]);
+  const monthlyPoints = useMonthlyTrendPoints(filtered, unit, anchor);
 
   const dailyTotals = React.useMemo(
     () => (unit === 'month' ? aggregateByDay(filtered, anchor) : []),

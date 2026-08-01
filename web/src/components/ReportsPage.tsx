@@ -1,13 +1,13 @@
 import * as React from 'react';
 import { ArrowLeft } from 'lucide-react';
-import { groupByCategory, aggregateByMonth, type Category } from '@expenses/shared';
+import { groupByCategory, type Category } from '@expenses/shared';
 import { Button } from '@/components/ui/button';
 import { TotalCard } from '@/components/TotalCard';
 import { PeriodNav } from '@/components/PeriodNav';
 import { CategoryBreakdownRows } from '@/components/CategoryBreakdownRows';
-import { TrendBarChart, type TrendBarChartPoint } from '@/components/TrendBarChart';
+import { TrendBarChart } from '@/components/TrendBarChart';
 import { useRangeSpendings } from '@/hooks/useRangeSpendings';
-import { MONTH_FULL, MONTH_SHORT } from '@/lib/months';
+import { useMonthlyTrendPoints } from '@/hooks/useMonthlyTrendPoints';
 import type { PeriodUnit } from '@/lib/date';
 
 interface ReportsPageProps {
@@ -42,24 +42,11 @@ export function ReportsPage({
     () => groupByCategory(spendings ?? [], categories),
     [spendings, categories],
   );
-  const total = React.useMemo(
-    () => (spendings ?? []).reduce((sum, s) => sum + (s.amount || 0), 0),
-    [spendings],
-  );
+  // Sum the (few) category rows rather than re-reducing every spending —
+  // groupByCategory already did that pass to compute each row's total.
+  const total = React.useMemo(() => rows.reduce((sum, r) => sum + r.total, 0), [rows]);
 
-  const year = Number(unit === 'year' ? anchor : anchor.slice(0, 4));
-  const monthlyPoints: TrendBarChartPoint[] = React.useMemo(() => {
-    if (unit !== 'year') return [];
-    const totals = aggregateByMonth(spendings ?? [], year);
-    const now = new Date();
-    return totals.map((t, i) => ({
-      key: String(i),
-      label: MONTH_FULL[i],
-      shortLabel: MONTH_SHORT[i],
-      total: t,
-      occurred: year < now.getFullYear() || (year === now.getFullYear() && i <= now.getMonth()),
-    }));
-  }, [spendings, unit, year]);
+  const monthlyPoints = useMonthlyTrendPoints(spendings ?? [], unit, anchor);
 
   return (
     <div className="mx-auto min-h-dvh max-w-2xl px-4 pb-28 pt-6">

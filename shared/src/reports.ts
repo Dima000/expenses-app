@@ -60,6 +60,23 @@ export function groupByCategory(
 }
 
 /**
+ * The spendings belonging to one category bucket — the same matching rule
+ * `groupByCategory` uses internally, exposed so the drill-down can filter to
+ * a single category without re-implementing it. Pass `UNCATEGORIZED` for the
+ * always-present unresolved bucket.
+ */
+export function spendingsForCategory(
+  spendings: readonly Spending[],
+  categoryId: string,
+  categories: readonly Category[],
+): Spending[] {
+  return spendings.filter((s) => {
+    const resolved = resolveCategory(s.category, categories);
+    return (resolved ? resolved.id : UNCATEGORIZED) === categoryId;
+  });
+}
+
+/**
  * Largest-remainder rounding (design.md D7): floor each exact share (0..1) to
  * a percentage, then hand the remaining points (100 minus the sum of floors)
  * one each to the largest fractional remainders, so the result always sums to

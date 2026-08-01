@@ -1,8 +1,8 @@
 import * as React from 'react';
 import {
   UNCATEGORIZED,
-  colorIdFor,
   largestRemainderRound,
+  resolveCategoryDisplay,
   type Category,
   type CategoryBreakdownRow,
 } from '@expenses/shared';
@@ -34,10 +34,7 @@ export function CategoryBreakdownRows({ rows, categories, onSelect }: CategoryBr
     <div className="rounded-xl border">
       {rows.map((row, i) => {
         const isUncategorized = row.categoryId === UNCATEGORIZED;
-        const category = isUncategorized
-          ? null
-          : (categories.find((c) => c.id === row.categoryId) ?? null);
-        const colorId = category ? colorIdFor(category, categories.indexOf(category)) : 'gray';
+        const { colorId } = resolveCategoryDisplay(row.categoryId, categories);
         return (
           <button
             key={row.categoryId}

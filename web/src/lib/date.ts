@@ -96,6 +96,15 @@ export function currentPeriodAnchor(unit: PeriodUnit): string {
 }
 
 /**
+ * Re-derive an anchor for a new unit from the current one, on a Month↔Year
+ * switch: Month→Year keeps the year; Year→Month anchors to January (e.g.
+ * switching Month→Year while viewing August 2026 shows the year 2026).
+ */
+export function convertAnchorUnit(anchor: string, toUnit: PeriodUnit): string {
+  return toUnit === 'year' ? anchor.slice(0, 4) : `${anchor}-01`;
+}
+
+/**
  * True when the NEXT period's start date is after today — one rule for both
  * units (design.md D4). Disables arrowing into a guaranteed-empty future period.
  */

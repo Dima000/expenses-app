@@ -2,6 +2,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   addPeriods,
+  convertAnchorUnit,
   isNextPeriodDisabled,
   periodLabel,
   type PeriodUnit,
@@ -23,10 +24,7 @@ export function PeriodNav({ unit, anchor, onChange }: PeriodNavProps) {
 
   function switchUnit(nextUnit: PeriodUnit) {
     if (nextUnit === unit) return;
-    // Re-derive the anchor for the new unit from the current one, per spec:
-    // switching Month→Year while viewing August 2026 shows the year 2026.
-    const nextAnchor = nextUnit === 'year' ? anchor.slice(0, 4) : `${anchor}-01`;
-    onChange(nextUnit, nextAnchor);
+    onChange(nextUnit, convertAnchorUnit(anchor, nextUnit));
   }
 
   return (

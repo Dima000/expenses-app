@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { shortDate, type Spending } from '@expenses/shared';
-import { ArrowDown, ArrowUp, ArrowUpDown, Pencil } from 'lucide-react';
+import { ArrowDown, ArrowUp, Pencil } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -10,6 +10,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { SortableHeader } from '@/components/SortableHeader';
 
 interface DrilldownTransactionsTableProps {
   spendings: Spending[];
@@ -51,28 +52,23 @@ export function DrilldownTransactionsTable({ spendings, onEdit }: DrilldownTrans
   function SortHeader({ sortKeyName, label }: { sortKeyName: SortKey; label: string }) {
     const active = sortKey === sortKeyName;
     return (
-      <button
-        type="button"
-        className={
-          active
-            ? 'inline-flex items-center gap-1 font-medium text-foreground'
-            : 'inline-flex items-center gap-1 hover:text-foreground'
-        }
-        onClick={() => handleSort(sortKeyName)}
-        aria-pressed={active}
-        title={active ? `Sorted by ${label.toLowerCase()} — click to reverse` : `Sort by ${label.toLowerCase()}`}
-      >
-        {label}
-        {active ? (
+      <SortableHeader
+        label={label}
+        active={active}
+        activeIcon={
           sortDir === 'asc' ? (
             <ArrowUp className="size-3.5 text-primary" />
           ) : (
             <ArrowDown className="size-3.5 text-primary" />
           )
-        ) : (
-          <ArrowUpDown className="size-3.5 opacity-40" />
-        )}
-      </button>
+        }
+        onClick={() => handleSort(sortKeyName)}
+        title={
+          active
+            ? `Sorted by ${label.toLowerCase()} — click to reverse`
+            : `Sort by ${label.toLowerCase()}`
+        }
+      />
     );
   }
 
@@ -89,7 +85,7 @@ export function DrilldownTransactionsTable({ spendings, onEdit }: DrilldownTrans
       <Table>
         <TableHeader className="sticky top-0 bg-card">
           <TableRow>
-            <TableHead className="w-24">
+            <TableHead className="w-28">
               <SortHeader sortKeyName="date" label="Date" />
             </TableHead>
             <TableHead className="w-20 text-right">
@@ -104,7 +100,7 @@ export function DrilldownTransactionsTable({ spendings, onEdit }: DrilldownTrans
         <TableBody>
           {rows.map((s) => (
             <TableRow key={s.id}>
-              <TableCell className="tabular-nums text-muted-foreground">
+              <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
                 {shortDate(s.date)}
               </TableCell>
               <TableCell className="text-right font-medium tabular-nums">
