@@ -70,17 +70,14 @@
       to update.)
 - [x] 6.2 Run `npm run test:rules` and `npm run test:rest` (Firebase emulator
       suites) locally and confirm they pass unchanged. (9/9 and 6/6 pass.)
-- [ ] 6.3 Run the app locally and manually verify: add a spending, edit a
+- [x] 6.3 Run the app locally and manually verify: add a spending, edit a
       spending, delete a spending, add/rename/remove a category, change a
-      category color, add/remove a term — all behave as before. **Not
-      completed**: the app loaded correctly against the emulators (sign-in
-      screen renders), but `signInWithPopup`'s popup window opens outside the
-      browser-automation tool's tracked tab group, so it couldn't be driven
-      to sign in and exercise the rest of the flow. `npm run test:rules` /
-      `test:rest` exercise the same Firestore writes end-to-end (including
-      category read-modify-write and seeding) and passed unchanged, which is
-      the closest available substitute; a human should still click through
-      the UI once before merging.
+      category color, add/remove a term — all behave as before. Browser
+      automation couldn't drive `signInWithPopup` (opens outside the tracked
+      tab group), so the app was run against the local emulators
+      (`firebase emulators:start --only auth,firestore` +
+      `VITE_USE_EMULATORS=true npm run dev`) and the user confirmed the
+      click-through by hand: all good.
 - [x] 6.4 Run typecheck/build (per CLAUDE.md: install + build/typecheck +
       domain unit tests is what CI runs) and confirm it's green. (`tsc -b`
       + `vite build` clean; 36/36 domain tests pass.)
