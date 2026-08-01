@@ -34,3 +34,6 @@ jobs:
 
       - name: Domain unit tests
         run: npm run test:domain
+
+      - name: Web unit tests
+        run: npm run test:web
