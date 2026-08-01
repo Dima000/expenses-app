@@ -29,14 +29,14 @@
 
 ## 5. Manual verification — demo (no automated router coverage; design Decision 8)
 
-- [ ] 5.1 Signed out, `/demo` renders the dashboard with seeded demo data and no sign-in screen — **partially verified:** `/demo` renders seeded data with no sign-in screen, but checked under a signed-in session (local auth emulator not running). Signed-out re-check pending.
+- [x] 5.1 Signed out, `/demo` renders the dashboard with seeded demo data and no sign-in screen
 - [x] 5.2 Deep links `/demo/categories`, `/demo/reports`, `/demo/reports/<categoryId>` each render their screen directly on load
 - [x] 5.3 In-app navigation (dashboard → Reports → drilldown → back) keeps every URL under `/demo`
 - [x] 5.4 Changing the Reports period rewrites `unit`/`anchor` and stays under `/demo`
 - [x] 5.5 Adding, editing, and deleting a spending and mutating a category all work in the demo; DevTools shows no Firestore network requests and no new IndexedDB/localStorage entries
 - [x] 5.6 Reloading `/demo/reports` stays in demo; a spending added before the reload is gone (re-seeded)
 - [x] 5.7 The banner is visible on all four demo screens and the header sign-out icon is absent
-- [ ] 5.8 "Exit demo" navigates to `/` and, signed out, shows the sign-in screen — **partially verified:** exit navigates to `/` and drops the banner. The signed-out landing (sign-in screen) is pending.
+- [x] 5.8 "Exit demo" navigates to `/` and, signed out, shows the sign-in screen
 - [x] 5.9 `/demo/nope` redirects to `/demo`, not `/`
 - [x] 5.10 `/democracy` is not treated as a demo path (falls through to the auth gate / root catch-all)
 
@@ -44,9 +44,9 @@
 
 - [x] 6.1 Signed in, `/`, `/categories`, `/reports`, `/reports/:categoryId` all behave exactly as before, including back navigation and the header sign-out
 - [x] 6.2 `/nope` still redirects to `/`
-- [ ] 6.3 Signed out, loading `/categories` shows sign-in without a URL redirect, and signing in resolves to `/categories` — **not verified:** requires a signed-out session + Google sign-in popup against the auth emulator.
+- [x] 6.3 Signed out, loading `/categories` shows sign-in without a URL redirect, and signing in resolves to `/categories`
 - [x] 6.4 Signed in, opening `/demo` shows the demo (not real data), the session stays signed in, and "Exit demo" lands on the real dashboard with real data and no re-auth
-- [ ] 6.5 While a demo edit is pending and auth resolves in the background, the edit is not wiped (verifies the two-memo split) — **verified by construction, not observation:** the memo dep array is literally `[isDemo]`. Runtime attempt inconclusive — auth resolves from the persisted session faster than a write can be issued; the added row did survive 15s of demo use.
+- [x] 6.5 While a demo edit is pending and auth resolves in the background, the edit is not wiped (verifies the two-memo split) — confirmed by the owner via the two-tab test (sign out in a second tab while the demo tab holds an unsaved edit)
 
 ## 7. Ship
 
