@@ -26,20 +26,23 @@ import { monthRange } from './date';
 const col = () => collection(db, SPENDINGS_COLLECTION);
 
 /**
- * Subscribe to a month's spendings for the owner, newest first. Uses a live
- * snapshot so a write on any device shows up here automatically (spec:
- * cross-device sync). Returns an unsubscribe function.
+ * Subscribe to an arbitrary `[start, end)` date range's spendings for the
+ * owner, newest first. Uses a live snapshot so a write on any device shows up
+ * here automatically (spec: cross-device sync). Returns an unsubscribe
+ * function.
  *
- * Ordered by `date desc` via a composite index; same-day entries are then
+ * Ordered by `date desc` via the existing `(ownerUid, date)` composite index,
+ * which covers any range since `date` is a fixed-width `YYYY-MM-DD` string
+ * (lexicographic range = chronological range); same-day entries are then
  * ordered by creation time client-side (avoids a second index field).
  */
-export function subscribeToMonth(
+export function subscribeToRange(
   ownerUid: string,
-  monthKey: string,
+  start: string,
+  end: string,
   onData: (spendings: Spending[]) => void,
   onError?: (err: Error) => void,
 ): () => void {
-  const { start, end } = monthRange(monthKey);
   const q = query(
     col(),
     where('ownerUid', '==', ownerUid),
@@ -75,6 +78,17 @@ export function subscribeToMonth(
     },
     (err) => onError?.(err),
   );
+}
+
+/** Subscribe to a single month's spendings — a thin wrapper over `subscribeToRange`. */
+export function subscribeToMonth(
+  ownerUid: string,
+  monthKey: string,
+  onData: (spendings: Spending[]) => void,
+  onError?: (err: Error) => void,
+): () => void {
+  const { start, end } = monthRange(monthKey);
+  return subscribeToRange(ownerUid, start, end, onData, onError);
 }
 
 /**

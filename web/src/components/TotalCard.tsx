@@ -3,14 +3,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 interface TotalCardProps {
   total: number;
   count: number;
+  label?: string;
 }
 
-/** Month-total card. Recomputes whenever the passed spendings change. */
-export function TotalCard({ total, count }: TotalCardProps) {
+/** Period-total card. Recomputes whenever the passed spendings change. */
+export function TotalCard({ total, count, label = 'Month total' }: TotalCardProps) {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardDescription>Month total</CardDescription>
+        <CardDescription>{label}</CardDescription>
         <CardTitle className="text-3xl tabular-nums">{total.toLocaleString()}</CardTitle>
       </CardHeader>
       <CardContent className="text-sm text-muted-foreground">

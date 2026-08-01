@@ -7,7 +7,7 @@ import {
   type CategoryValue,
   type Spending,
 } from '@expenses/shared';
-import { Pencil, Trash2, AlertTriangle, ArrowUpDown, ArrowDownAZ } from 'lucide-react';
+import { Pencil, Trash2, AlertTriangle, ArrowDownAZ } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/dialog';
 import { CategorySelect } from '@/components/CategorySelect';
 import { CategoryColorDot } from '@/components/CategoryColorDot';
+import { SortableHeader } from '@/components/SortableHeader';
 import { assignCategory, deleteSpending } from '@/lib/spendings';
 
 interface SpendingTableProps {
@@ -97,28 +98,17 @@ export function SpendingTable({ spendings, onEdit, categories, loading }: Spendi
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-24">Date</TableHead>
+            <TableHead className="w-28">Date</TableHead>
             <TableHead className="w-16 text-right">Amount</TableHead>
             <TableHead>Comment</TableHead>
             <TableHead>
-              <button
-                type="button"
-                className={
-                  sortByCategory
-                    ? 'inline-flex items-center gap-1 font-medium text-foreground'
-                    : 'inline-flex items-center gap-1 hover:text-foreground'
-                }
+              <SortableHeader
+                label="Category"
+                active={sortByCategory}
+                activeIcon={<ArrowDownAZ className="size-3.5 text-primary" />}
                 onClick={() => setSortByCategory((v) => !v)}
-                aria-pressed={sortByCategory}
                 title={sortByCategory ? 'Sorted by category — click to clear' : 'Sort by category'}
-              >
-                Category
-                {sortByCategory ? (
-                  <ArrowDownAZ className="size-3.5 text-primary" />
-                ) : (
-                  <ArrowUpDown className="size-3.5 opacity-40" />
-                )}
-              </button>
+              />
             </TableHead>
             <TableHead className="w-20 text-right">Actions</TableHead>
           </TableRow>
@@ -128,7 +118,7 @@ export function SpendingTable({ spendings, onEdit, categories, loading }: Spendi
             const resolved = resolveCategory(s.category, categories);
             return (
             <TableRow key={s.id}>
-              <TableCell className="tabular-nums text-muted-foreground">
+              <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
                 {shortDate(s.date)}
               </TableCell>
               <TableCell className="text-right font-medium tabular-nums">
@@ -140,7 +130,7 @@ export function SpendingTable({ spendings, onEdit, categories, loading }: Spendi
                   s.amount.toLocaleString()
                 )}
               </TableCell>
-              <TableCell className="max-w-[16rem] truncate text-muted-foreground">
+              <TableCell className="max-w-[12.8rem] truncate text-muted-foreground">
                 {s.comment}
               </TableCell>
               <TableCell>
