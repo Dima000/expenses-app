@@ -100,7 +100,13 @@ export function CategoryDrilldownPage({
         {unit === 'year' ? (
           <TrendBarChart data={monthlyPoints} color={oklchForColorId(colorId)} />
         ) : (
-          <CalendarHeatmap monthKey={anchor} dailyTotals={dailyTotals} colorId={colorId} />
+          // The heatmap's 7-column grid of square cells scales with its
+          // container, which at this card's desktop width makes each day
+          // ~90px. Cap it here so days stay calendar-sized on desktop while
+          // still filling a phone screen.
+          <div className="mx-auto w-full max-w-xs">
+            <CalendarHeatmap monthKey={anchor} dailyTotals={dailyTotals} colorId={colorId} />
+          </div>
         )}
       </div>
 
