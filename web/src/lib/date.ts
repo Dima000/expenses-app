@@ -97,11 +97,13 @@ export function currentPeriodAnchor(unit: PeriodUnit): string {
 
 /**
  * Re-derive an anchor for a new unit from the current one, on a Month↔Year
- * switch: Month→Year keeps the year; Year→Month anchors to January (e.g.
- * switching Month→Year while viewing August 2026 shows the year 2026).
+ * switch: Month→Year keeps the year (viewing August 2026 shows the year 2026);
+ * Year→Month keeps the year and anchors to the *current* month within it, so
+ * switching to Month view lands on the month you are actually in rather than
+ * sending you back to January to arrow forward.
  */
 export function convertAnchorUnit(anchor: string, toUnit: PeriodUnit): string {
-  return toUnit === 'year' ? anchor.slice(0, 4) : `${anchor}-01`;
+  return toUnit === 'year' ? anchor.slice(0, 4) : `${anchor}-${currentMonthKey().slice(5)}`;
 }
 
 /**

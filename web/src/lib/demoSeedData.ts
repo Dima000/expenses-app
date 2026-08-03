@@ -13,52 +13,152 @@ import {
   type Spending,
   type SpendingInput,
 } from '@expenses/shared';
-import { addMonths, toDateString } from './date';
+import { toDateString } from './date';
 
 /** `ownerUid` stored on every seeded spending; never a real Firebase uid. */
 export const DEMO_OWNER_UID = 'demo';
 
-const ENTRIES_PER_MONTH = 30;
+/** Weekday indices as `Date#getDay()` returns them. */
+const TUE = 2;
+const WED = 3;
+const THU = 4;
+const FRI = 5;
+const SAT = 6;
 
-const pad = (n: number) => String(n).padStart(2, '0');
+/**
+ * How often a rule fires. `weekly` drives the dense categories the drilldown
+ * heatmap needs; `monthly` covers fixed and occasional spend. Two kinds cover
+ * every shape the demo needs (design.md D1).
+ */
+type Cadence =
+  | { kind: 'weekly'; weekdays: readonly number[]; skipEvery?: number }
+  | { kind: 'monthly'; daysOfMonth: readonly number[] };
 
-function daysInMonth(monthKey: string): number {
-  const [y, m] = monthKey.split('-').map(Number);
-  return new Date(y, m, 0).getDate();
-}
-
-/** A pool entry cycled by day-index rather than drawn at random. */
-interface PoolEntry {
+/** One category's rhythm, comment pool, and amount cycle. */
+interface CadenceRule {
+  /** The category assigned directly — `UNCATEGORIZED` when `autoMatch` resolves it. */
   categoryId: string;
-  comment: string;
-  minAmount: number;
-  maxAmount: number;
+  cadence: Cadence;
+  /** Cycled by this rule's own occurrence index. */
+  comments: readonly string[];
+  /**
+   * Hand-picked amounts cycled by this rule's own occurrence index, so
+   * intensity varies instead of ramping linearly (design.md D4). Lengths are
+   * chosen not to re-align with the cadence and produce a repeating stripe.
+   */
+  amounts: readonly number[];
+  needsReview?: boolean;
+  /** Comment carries a term seeded onto the demo categories; the real matcher assigns the category. */
+  autoMatch?: boolean;
 }
 
-/** Manually-categorized entries, spread across every default category for Reports variety. */
-const NORMAL_POOL: PoolEntry[] = [
-  { categoryId: 'groceries', comment: 'Weekly grocery shop', minAmount: 15, maxAmount: 45 },
-  { categoryId: 'health', comment: 'Pharmacy run', minAmount: 8, maxAmount: 30 },
-  { categoryId: 'sports', comment: 'Gym membership', minAmount: 20, maxAmount: 60 },
-  { categoryId: 'pet', comment: 'Vet visit supplies', minAmount: 10, maxAmount: 40 },
-  { categoryId: 'relationships', comment: 'Dinner out', minAmount: 25, maxAmount: 70 },
-  { categoryId: 'kid', comment: 'School supplies', minAmount: 12, maxAmount: 35 },
-  { categoryId: 'utilities', comment: 'Internet bill', minAmount: 30, maxAmount: 55 },
-  { categoryId: 'other', comment: 'Miscellaneous purchase', minAmount: 5, maxAmount: 25 },
+/**
+ * The cadence table (design.md D3). `groceries` and `relationships` are the
+ * two dense categories — a viewer expects both to recur, and their differing
+ * weekday sets make their heatmaps look different from each other. `health`
+ * and `pet` stay at one day per month so drilldowns differ in density.
+ */
+const CADENCE_RULES: readonly CadenceRule[] = [
+  {
+    categoryId: 'groceries',
+    cadence: { kind: 'weekly', weekdays: [TUE, THU, SAT], skipEvery: 5 },
+    comments: ['Weekly grocery shop', 'Corner shop top-up', 'Market vegetables', 'Bakery run'],
+    amounts: [42, 18, 37, 63, 22, 51, 29, 45, 15, 34],
+  },
+  {
+    categoryId: 'relationships',
+    cadence: { kind: 'weekly', weekdays: [WED, FRI, SAT], skipEvery: 4 },
+    comments: ['Dinner out', 'Drinks with friends', 'Cinema tickets'],
+    amounts: [58, 24, 71, 33, 46, 19, 62],
+  },
+  {
+    categoryId: UNCATEGORIZED,
+    cadence: { kind: 'monthly', daysOfMonth: [6, 17, 28] },
+    comments: ['Cash withdrawal', 'Online purchase', 'Store purchase'],
+    amounts: [23, 9, 41, 16],
+  },
+  {
+    categoryId: 'kid',
+    cadence: { kind: 'monthly', daysOfMonth: [5, 18] },
+    comments: ['School supplies', 'Kids clothes'],
+    amounts: [27, 14, 35, 19, 22],
+  },
+  {
+    categoryId: 'sports',
+    cadence: { kind: 'monthly', daysOfMonth: [7, 21] },
+    comments: ['Gym membership', 'Climbing session'],
+    amounts: [55, 21, 38],
+  },
+  {
+    categoryId: 'other',
+    cadence: { kind: 'monthly', daysOfMonth: [11, 26] },
+    comments: ['Miscellaneous purchase', 'Household bits'],
+    amounts: [12, 31, 7, 24],
+  },
+  {
+    categoryId: UNCATEGORIZED,
+    cadence: { kind: 'monthly', daysOfMonth: [8, 21] },
+    comments: ['Voice capture, amount unclear', 'Quick log, check amount later'],
+    // `needsReview` entries are exactly the ones whose amount is not yet known.
+    amounts: [0],
+    needsReview: true,
+  },
+  {
+    categoryId: 'utilities',
+    cadence: { kind: 'monthly', daysOfMonth: [3] },
+    comments: ['Internet bill'],
+    amounts: [47, 52, 44, 61, 49],
+  },
+  {
+    categoryId: 'health',
+    cadence: { kind: 'monthly', daysOfMonth: [9] },
+    comments: ['Pharmacy run', 'Dentist checkup'],
+    amounts: [26, 11, 48, 17],
+  },
+  {
+    categoryId: 'pet',
+    cadence: { kind: 'monthly', daysOfMonth: [14] },
+    comments: ['Vet visit supplies', 'Pet food refill'],
+    amounts: [33, 64, 19],
+  },
+  {
+    categoryId: UNCATEGORIZED,
+    cadence: { kind: 'monthly', daysOfMonth: [10] },
+    comments: ['Grabbed milk and eggs on the way home'],
+    amounts: [8, 5, 11, 6, 9],
+    autoMatch: true,
+  },
+  {
+    categoryId: UNCATEGORIZED,
+    cadence: { kind: 'monthly', daysOfMonth: [2] },
+    comments: ['Paid the electricity bill'],
+    amounts: [72, 58, 84, 66, 49],
+    autoMatch: true,
+  },
 ];
 
-const UNCATEGORIZED_COMMENTS = ['Cash withdrawal', 'Online purchase', 'Store purchase'];
+/**
+ * The rule backing the explicit "dated today" entry when nothing else fired
+ * (design.md D6) — `groceries`, the densest category, so the fallback reads as
+ * ordinary traffic. Looked up by category so reordering the table above cannot
+ * silently repoint it at a different rule.
+ */
+const TODAY_RULE_INDEX = CADENCE_RULES.findIndex((rule) => rule.categoryId === 'groceries');
 
-const REVIEW_COMMENTS = ['Voice capture, amount unclear', 'Quick log, check amount later'];
+function cadenceFires(cadence: Cadence, date: Date): boolean {
+  return cadence.kind === 'weekly'
+    ? cadence.weekdays.includes(date.getDay())
+    : cadence.daysOfMonth.includes(date.getDate());
+}
 
-/** Comments containing a term seeded onto the demo category set, for the real matcher to resolve. */
-const AUTO_MATCH_ENTRIES = [
-  { comment: 'Grabbed milk and eggs on the way home', minAmount: 4, maxAmount: 12 },
-  { comment: 'Paid the electricity bill', minAmount: 40, maxAmount: 90 },
-];
-
-function amountFor(min: number, max: number, dayIndex: number): number {
-  return min + (dayIndex % (max - min + 1));
+/**
+ * `skipEvery: N` drops every Nth firing, counted per category across the whole
+ * run rather than reset per month (design.md D2) — a counter that reset would
+ * give every month an identical skip pattern.
+ */
+function cadenceSkips(cadence: Cadence, occurrence: number): boolean {
+  if (cadence.kind !== 'weekly' || !cadence.skipEvery) return false;
+  return occurrence % cadence.skipEvery === cadence.skipEvery - 1;
 }
 
 /**
@@ -72,39 +172,23 @@ export function buildDemoCategories(): Category[] {
 }
 
 /**
- * Deterministic placement rule keyed by a running day-index: explicit
- * `needsReview` / uncategorized / auto-matched entries at fixed moduli, a
- * cycled category pool otherwise (design.md "Seed generator").
+ * One entry for a rule's `occurrence`-th firing. Auto-matched rules go through
+ * the real matcher rather than assigning `category`/`autoMatchedTerm` directly.
  */
 function buildSpendingInput(
+  rule: CadenceRule,
   dateStr: string,
-  dayIndex: number,
+  occurrence: number,
   demoCategories: readonly Category[],
 ): SpendingInput {
-  if (dayIndex % 7 === 0) {
-    const comment = REVIEW_COMMENTS[dayIndex % REVIEW_COMMENTS.length];
-    return { amount: 0, date: dateStr, comment, category: UNCATEGORIZED, needsReview: true };
-  }
-  if (dayIndex % 5 === 0) {
-    const comment = UNCATEGORIZED_COMMENTS[dayIndex % UNCATEGORIZED_COMMENTS.length];
-    const amount = amountFor(5, 25, dayIndex);
-    return { amount, date: dateStr, comment, category: UNCATEGORIZED, needsReview: false };
-  }
-  if (dayIndex % 11 === 0) {
-    const tpl = AUTO_MATCH_ENTRIES[dayIndex % AUTO_MATCH_ENTRIES.length];
-    const amount = amountFor(tpl.minAmount, tpl.maxAmount, dayIndex);
-    const draft: SpendingInput = {
-      amount,
-      date: dateStr,
-      comment: tpl.comment,
-      category: UNCATEGORIZED,
-      needsReview: false,
-    };
-    return applyAutoCategory(draft, demoCategories);
-  }
-  const tpl = NORMAL_POOL[dayIndex % NORMAL_POOL.length];
-  const amount = amountFor(tpl.minAmount, tpl.maxAmount, dayIndex);
-  return { amount, date: dateStr, comment: tpl.comment, category: tpl.categoryId, needsReview: false };
+  const input: SpendingInput = {
+    amount: rule.amounts[occurrence % rule.amounts.length],
+    date: dateStr,
+    comment: rule.comments[occurrence % rule.comments.length],
+    category: rule.categoryId,
+    needsReview: rule.needsReview ?? false,
+  };
+  return rule.autoMatch ? applyAutoCategory(input, demoCategories) : input;
 }
 
 function toSpending(input: SpendingInput, id: number, createdAtMs: number): Spending {
@@ -112,68 +196,56 @@ function toSpending(input: SpendingInput, id: number, createdAtMs: number): Spen
 }
 
 /**
- * Generate the demo dataset relative to `today`: 3–4 months of history in
- * the current year (as many of the latest 4 as remain within it) plus the
- * last 3 months of the prior year, ~30 entries/month. `categories` defaults
- * to a fresh `buildDemoCategories()`, but a caller (e.g. `DemoDataSource`)
- * may pass its own instance so seeding stays consistent with what it stores.
+ * Generate the demo dataset relative to `today`: the whole of the prior
+ * calendar year plus the current year up to and including "today". Every date
+ * in that window is walked and each rule asked whether it fires, so the
+ * current month simply holds whatever its cadences produced for the elapsed
+ * days — no future-dated entry is possible by construction. `categories`
+ * defaults to a fresh `buildDemoCategories()`, but a caller (e.g.
+ * `DemoDataSource`) may pass its own instance so seeding stays consistent with
+ * what it stores.
  */
 export function generateDemoSpendings(
   today: Date = new Date(),
   categories: readonly Category[] = buildDemoCategories(),
 ): Spending[] {
   const todayStr = toDateString(today);
-  const currentYear = today.getFullYear();
-  const curMonthKey = `${currentYear}-${pad(today.getMonth() + 1)}`;
-
-  const currentYearMonths: string[] = [];
-  for (let i = 0; i < 4; i++) {
-    const monthKey = addMonths(curMonthKey, -i);
-    if (Number(monthKey.slice(0, 4)) !== currentYear) break;
-    currentYearMonths.unshift(monthKey);
-  }
-
-  const priorYear = currentYear - 1;
-  const priorYearMonths = [`${priorYear}-10`, `${priorYear}-11`, `${priorYear}-12`];
-
-  const monthsCovered = [...priorYearMonths, ...currentYearMonths];
-
   const spendings: Spending[] = [];
-  let dayIndex = 0;
+  // Per-rule counters: `fired` counts every date a cadence names (skipped ones
+  // included, so `skipEvery` stays regular); `emitted` indexes the amount and
+  // comment cycles. Both are per-category, so changing one rule's cadence
+  // cannot disturb another category's entries.
+  const counters = CADENCE_RULES.map(() => ({ fired: 0, emitted: 0 }));
   let id = 0;
 
-  for (const monthKey of monthsCovered) {
-    const isCurrentMonth = monthKey === curMonthKey;
-    // The current month only has days up to "today" — no future-dated entries.
-    const maxDay = isCurrentMonth ? today.getDate() : daysInMonth(monthKey);
-    // One slot is reserved below for an explicit "dated today" entry.
-    const entriesInMonth = isCurrentMonth ? ENTRIES_PER_MONTH - 1 : ENTRIES_PER_MONTH;
-
-    for (let slot = 0; slot < entriesInMonth; slot++) {
-      const day = 1 + (slot % maxDay);
-      const dateStr = `${monthKey}-${pad(day)}`;
-      const input = buildSpendingInput(dateStr, dayIndex, categories);
+  const cursor = new Date(today.getFullYear() - 1, 0, 1);
+  let dateStr = toDateString(cursor);
+  while (dateStr <= todayStr) {
+    CADENCE_RULES.forEach((rule, i) => {
+      if (!cadenceFires(rule.cadence, cursor)) return;
+      const counter = counters[i];
+      const occurrence = counter.fired++;
+      if (cadenceSkips(rule.cadence, occurrence)) return;
+      const input = buildSpendingInput(rule, dateStr, counter.emitted++, categories);
       spendings.push(toSpending(input, id, id));
-      dayIndex++;
       id++;
-    }
+    });
+    cursor.setDate(cursor.getDate() + 1);
+    dateStr = toDateString(cursor);
+  }
 
-    if (isCurrentMonth) {
-      // Explicit placement (not left to the day-index modulo) so a "today"
-      // entry exists regardless of how many days into the month it is.
-      const tpl = NORMAL_POOL[dayIndex % NORMAL_POOL.length];
-      const amount = amountFor(tpl.minAmount, tpl.maxAmount, dayIndex);
-      const input: SpendingInput = {
-        amount,
-        date: todayStr,
-        comment: tpl.comment,
-        category: tpl.categoryId,
-        needsReview: false,
-      };
-      spendings.push(toSpending(input, id, id));
-      dayIndex++;
-      id++;
-    }
+  // Cadences cannot guarantee an entry on "today", and the dashboard's Today
+  // filter needs one — so append it, but only when the walk produced none
+  // (design.md D6). Entries are pushed in date order and "today" is the last
+  // date walked, so the final entry settles it.
+  if (spendings[spendings.length - 1]?.date !== todayStr) {
+    const input = buildSpendingInput(
+      CADENCE_RULES[TODAY_RULE_INDEX],
+      todayStr,
+      counters[TODAY_RULE_INDEX].emitted,
+      categories,
+    );
+    spendings.push(toSpending(input, id, id));
   }
 
   return spendings;

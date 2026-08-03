@@ -209,9 +209,17 @@ re-derives on its own, and there's no state to flush since nothing persisted.
   computed relative to "today" at demo-start (not hardcoded absolute dates),
   so `today` / `this month` filters always resolve correctly and the dataset
   never goes stale.
-- **Range:** 3–4 months of history in the current year + 2–3 months in the
-  prior year.
-- **Volume:** ~30 transactions/month.
+- **Range:** the whole of the prior calendar year plus the current year up to
+  and including "today", so both Reports year-views are populated.
+- **Placement:** each category declares its own cadence — a weekly rhythm
+  (`groceries`, `relationships`) or a set of days-of-month (bills, one-offs) —
+  and generation walks every date in the window asking each category whether it
+  fires. Volume is emergent at ~35 transactions in a fully covered month; the
+  current month holds only what the cadences produced for the elapsed days, so
+  it is proportional rather than a full month compressed onto them.
+- **Density:** `groceries` and `relationships` land on 9+ distinct days a month
+  so the category-drilldown heatmap is populated, while `health` and `pet` stay
+  at one day a month so drilldowns differ from one another.
 - Mix includes: some uncategorized entries (exercises the Uncategorized
   filter), some `needsReview` entries, and some dated today (exercises the
   Today/Yesterday filters). Categories spread across the set for Reports/
