@@ -28,16 +28,16 @@
 
 ## 4. Visual verification in the running demo
 
-- [ ] 4.1 `npm run dev`, open `/demo/reports/groceries` in month view — the heatmap shows ~10 lit days with varied intensity, not a linear ramp
-- [ ] 4.2 `/demo/reports/relationships` shows a visibly different, weekend-weighted pattern
-- [ ] 4.3 `/demo/reports/pet` (or `health`) shows the deliberately sparse single-day case, confirming drilldowns differ from each other
-- [ ] 4.4 The dashboard's current month shows entries spread across the elapsed days, not stacked on today and yesterday
-- [ ] 4.5 Reports year view for the prior year shows 12 populated bars; the current year runs January through the current month with no future bars
-- [ ] 4.6 The Today, Uncategorized, and needs-review filters each still return entries
+- [x] 4.1 `npm run dev`, open `/demo/reports/groceries` in month view — the heatmap shows ~10 lit days with varied intensity, not a linear ramp
+- [x] 4.2 `/demo/reports/relationships` shows a visibly different, weekend-weighted pattern
+- [x] 4.3 `/demo/reports/pet` (or `health`) shows the deliberately sparse single-day case, confirming drilldowns differ from each other
+- [x] 4.4 The dashboard's current month shows entries spread across the elapsed days, not stacked on today and yesterday
+- [x] 4.5 Reports year view for the prior year shows 12 populated bars; the current year runs January through the current month with no future bars
+- [x] 4.6 The Today, Uncategorized, and needs-review filters each still return entries
 
 ## 5. Ship
 
 - [x] 5.1 `npm run build:web` typechecks clean
 - [x] 5.2 Update `docs/explorations/2026-08-01-demo-mode-and-dev-sandbox.md` — correct the "Seed data" section's range/volume description to the new window and cadence model
 - [ ] 5.3 Commit, push, open a PR referencing the relevant issue, and merge once CI is green
-- [ ] 5.4 Archive the change (`/opsx:archive`) so the `demo-data-source` spec picks up the deltas
+- [x] 5.4 Archive the change (`/opsx:archive`) so the `demo-data-source` spec picks up the deltas
