@@ -39,5 +39,5 @@
 
 - [x] 5.1 `npm run build:web` typechecks clean
 - [x] 5.2 Update `docs/explorations/2026-08-01-demo-mode-and-dev-sandbox.md` — correct the "Seed data" section's range/volume description to the new window and cadence model
-- [ ] 5.3 Commit, push, open a PR referencing the relevant issue, and merge once CI is green
+- [x] 5.3 Commit, push, open a PR referencing the relevant issue, and merge once CI is green
 - [x] 5.4 Archive the change (`/opsx:archive`) so the `demo-data-source` spec picks up the deltas
