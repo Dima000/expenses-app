@@ -130,6 +130,9 @@ export class DemoDataSource implements DataSource {
             category: valid.category,
             // Clear any stale matched-term when an edit no longer auto-categorises.
             autoMatchedTerm: valid.autoMatchedTerm,
+            // Same caption lifecycle as Firestore: kept only while the form
+            // passes it back, which it does only while the amount is unchanged.
+            origAmount: valid.origAmount,
             needsReview: valid.needsReview ?? false,
           }
         : s,

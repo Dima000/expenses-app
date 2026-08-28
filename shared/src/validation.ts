@@ -84,8 +84,9 @@ export class SpendingValidationError extends Error {
 /**
  * Validate and narrow to a well-formed {@link SpendingInput}, throwing
  * {@link SpendingValidationError} otherwise. Normalizes an absent comment to
- * `''` and an absent `needsReview` to `false`. Carries `autoMatchedTerm`
- * through when set, so it can be persisted.
+ * `''` and an absent `needsReview` to `false`. Carries `autoMatchedTerm` and
+ * `origAmount` through when set, so they can be persisted — never as
+ * `undefined`, which Firestore rejects.
  */
 export function assertValidSpending(input: Partial<SpendingInput> | undefined): SpendingInput {
   const { ok, errors } = validateSpending(input);
@@ -97,5 +98,6 @@ export function assertValidSpending(input: Partial<SpendingInput> | undefined): 
     category: input.category!,
     needsReview: input.needsReview === true,
     ...(input.autoMatchedTerm ? { autoMatchedTerm: input.autoMatchedTerm } : {}),
+    ...(input.origAmount ? { origAmount: input.origAmount } : {}),
   };
 }
