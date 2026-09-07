@@ -76,6 +76,19 @@ test('a spending with an arbitrary (non-list) category id is accepted', async ()
   );
 });
 
+test('a converted spending carrying origAmount is accepted unchanged', async () => {
+  // `validSpending` uses `hasAll`, not `hasOnly`, so the optional caption needs
+  // no rule change — this test is what keeps that true.
+  const db = env.authenticatedContext(OWNER).firestore();
+  await assertSucceeds(
+    setDoc(doc(db, 'spendings/s-orig'), {
+      ...validDoc(),
+      amount: 58,
+      origAmount: '11 euro @ 5.2584',
+    }),
+  );
+});
+
 test('a needsReview entry may have amount 0', async () => {
   const db = env.authenticatedContext(OWNER).firestore();
   await assertSucceeds(

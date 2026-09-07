@@ -21,6 +21,7 @@ import { DataSourceProvider } from '@/lib/dataSource';
 import { FirestoreDataSource } from '@/lib/firestoreDataSource';
 import { DemoDataSource } from '@/lib/demoDataSource';
 import { DEMO_BASE, ROOT_BASE, isDemoPath, withBase } from '@/lib/demoRoutes';
+import { refreshIfStale } from '@/lib/fx';
 import {
   currentMonthKey,
   currentPeriodAnchor,
@@ -110,6 +111,13 @@ function AppShell() {
     if (!dataSource) return;
     return dataSource.subscribeToMonth(month, setSpendings);
   }, [dataSource, month]);
+
+  // Top up the device's exchange-rate cache at most once a day. Fire-and-forget
+  // on purpose: the form reads whatever is already cached and is never gated on
+  // this. The demo route short-circuits inside `refreshIfStale` (design.md D9).
+  React.useEffect(() => {
+    void refreshIfStale({ demo: isDemo });
+  }, [isDemo]);
 
   // Live subscription to the owner's categories (seeds defaults on first run).
   React.useEffect(() => {

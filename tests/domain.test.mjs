@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import {
   parseAmountFromTranscript,
   roundUpAmount,
+  convertToBase,
+  formatOriginalEntry,
+  retainedOriginalEntry,
   validateSpending,
   isAllowedCategory,
   shortDate,
@@ -45,9 +48,10 @@ test('parser: amount and comment are separated', () => {
   assert.equal(r.needsReview, false);
 });
 
-test('parser: currency symbol ignored, decimal rounded up', () => {
+test('parser: leading symbol selects the currency, amount left unrounded', () => {
   const r = parseAmountFromTranscript('£12.50 lunch');
-  assert.equal(r.amount, 13);
+  assert.equal(r.amount, 12.5);
+  assert.equal(r.currency, 'GBP');
   assert.equal(r.comment, 'lunch');
 });
 
@@ -330,4 +334,104 @@ test('niceAxisMax: rounds up to the smallest 1/2/5/10 step at or above the raw p
   assert.equal(niceAxisMax(150), 200);
   assert.equal(niceAxisMax(420), 500);
   assert.equal(niceAxisMax(0), 1);
+});
+
+// --- currency conversion (design.md D5) ------------------------------------
+
+// A rate table is always RON per ONE unit of the foreign currency.
+const RATES = { EUR: 5.2584, USD: 4.5155, GBP: 6.1331 };
+
+test('convertToBase: the base currency passes through untouched', () => {
+  assert.equal(convertToBase(11, 'RON', RATES), 11);
+  assert.equal(convertToBase(10.4, 'RON', RATES), 10.4);
+});
+
+test('convertToBase: multiplies by the rate and does NOT round', () => {
+  assert.equal(convertToBase(11, 'EUR', RATES), 11 * 5.2584);
+  assert.equal(convertToBase(10, 'GBP', { GBP: 6 }), 60);
+});
+
+test('convertToBase: null for a missing, non-positive or unusable rate', () => {
+  assert.equal(convertToBase(11, 'EUR', {}), null);
+  assert.equal(convertToBase(11, 'EUR', { EUR: 0 }), null);
+  assert.equal(convertToBase(11, 'EUR', { EUR: -5 }), null);
+  assert.equal(convertToBase(11, 'EUR', { EUR: Number.NaN }), null);
+  assert.equal(convertToBase(Number.NaN, 'EUR', RATES), null);
+});
+
+test('convert THEN round — the ceiling fires exactly once, after conversion', () => {
+  // 11 EUR @ 5.2584 = 57.8424 → 58
+  assert.equal(roundUpAmount(convertToBase(11, 'EUR', RATES)), 58);
+  // The whole point of the ordering: rounding 10.4 up to 11 first would give 55.
+  assert.equal(roundUpAmount(convertToBase(10.4, 'EUR', { EUR: 5 })), 52);
+  assert.notEqual(roundUpAmount(convertToBase(10.4, 'EUR', { EUR: 5 })), 55);
+});
+
+test('formatOriginalEntry: one caption format for every writer', () => {
+  assert.equal(formatOriginalEntry(11, 'EUR', 5.2584), '11 euro @ 5.2584');
+  assert.equal(formatOriginalEntry(12.5, 'GBP', 6.1331), '12.5 pounds @ 6.1331');
+  // A longer rate is trimmed to 4 decimals, matching what the cache stores.
+  assert.equal(formatOriginalEntry(20, 'USD', 4.515498), '20 dollars @ 4.5155');
+});
+
+test('caption lifecycle: kept while the amount holds, dropped when it moves', () => {
+  const stored = { amount: 58, origAmount: '11 euro @ 5.2584' };
+  // Editing only the comment/date/category leaves the amount — caption is true.
+  assert.equal(retainedOriginalEntry(stored, 58), '11 euro @ 5.2584');
+  // Changing the amount makes it a lie, so it must not survive.
+  assert.equal(retainedOriginalEntry(stored, 70), undefined);
+  // Records with no caption (every RON entry) simply have nothing to keep.
+  assert.equal(retainedOriginalEntry({ amount: 58 }, 58), undefined);
+  assert.equal(retainedOriginalEntry(null, 58), undefined);
+});
+
+// --- parser currency detection (design.md D10) -----------------------------
+
+test('parser: trailing currency word selects the currency and is stripped', () => {
+  const eur = parseAmountFromTranscript('11 euro lunch');
+  assert.equal(eur.amount, 11);
+  assert.equal(eur.currency, 'EUR');
+  assert.equal(eur.comment, 'lunch');
+
+  const usd = parseAmountFromTranscript('20 dolari benzina');
+  assert.equal(usd.currency, 'USD');
+  assert.equal(usd.comment, 'benzina');
+
+  const gbp = parseAmountFromTranscript('9 pounds tea');
+  assert.equal(gbp.currency, 'GBP');
+  assert.equal(gbp.comment, 'tea');
+});
+
+test('parser: currency words match case-insensitively with diacritics normalised', () => {
+  const r = parseAmountFromTranscript('9 Liră ceai');
+  assert.equal(r.currency, 'GBP');
+  assert.equal(r.comment, 'ceai');
+  assert.equal(parseAmountFromTranscript('11 EURO lunch').currency, 'EUR');
+});
+
+test('parser: base-currency word is stripped, no conversion implied', () => {
+  // The highest-value case: today this stores the comment "lei bere", which
+  // also feeds auto-categorisation term matching.
+  const r = parseAmountFromTranscript('10 lei bere');
+  assert.equal(r.amount, 10);
+  assert.equal(r.currency, 'RON');
+  assert.equal(r.comment, 'bere');
+});
+
+test('parser: an unrecognised trailing word stays in the comment', () => {
+  const r = parseAmountFromTranscript('10 coffee');
+  assert.equal(r.amount, 10);
+  assert.equal(r.currency, null);
+  assert.equal(r.comment, 'coffee');
+});
+
+test('parser: no symbol and no currency word reports no currency', () => {
+  assert.equal(parseAmountFromTranscript('12 lunch').currency, null);
+  assert.equal(parseAmountFromTranscript('coffee').currency, null);
+});
+
+test('parser: decimals are returned raw for the write path to round', () => {
+  const r = parseAmountFromTranscript('12.50 lunch');
+  assert.equal(r.amount, 12.5);
+  assert.equal(roundUpAmount(r.amount), 13);
 });

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Mic, Loader2 } from 'lucide-react';
-import { parseAmountFromTranscript } from '@expenses/shared';
+import { parseAmountFromTranscript, type Currency } from '@expenses/shared';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
@@ -9,6 +9,8 @@ import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 export interface VoiceCapture {
   amount: string;
   comment: string;
+  /** Currency spoken as a symbol or word, or `null` — the form then keeps RON. */
+  currency: Currency | null;
 }
 
 interface VoiceButtonProps {
@@ -33,9 +35,10 @@ export function VoiceButton({ onCapture, autoStart }: VoiceButtonProps) {
 
   const handleTranscript = React.useCallback(
     (transcript: string) => {
-      const { amount, comment, needsReview } = parseAmountFromTranscript(transcript);
+      const { amount, comment, currency, needsReview } = parseAmountFromTranscript(transcript);
       // Never invent an amount: leave it blank for the owner to fill in the form.
-      onCapture({ amount: needsReview ? '' : String(amount), comment });
+      // The amount is raw here — conversion and the round-up happen at save time.
+      onCapture({ amount: needsReview ? '' : String(amount), comment, currency });
     },
     [onCapture],
   );

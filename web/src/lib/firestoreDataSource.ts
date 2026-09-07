@@ -112,6 +112,7 @@ export class FirestoreDataSource implements DataSource {
             comment: data.comment ?? '',
             category: data.category,
             autoMatchedTerm: data.autoMatchedTerm,
+            origAmount: data.origAmount,
             needsReview: data.needsReview ?? false,
             ownerUid: data.ownerUid,
             source: data.source,
@@ -194,6 +195,8 @@ export class FirestoreDataSource implements DataSource {
       category: valid.category,
       // Only persisted when auto-categorisation fired (never write `undefined`).
       ...(valid.autoMatchedTerm ? { autoMatchedTerm: valid.autoMatchedTerm } : {}),
+      // Only present when the amount was converted from a foreign currency (D2).
+      ...(valid.origAmount ? { origAmount: valid.origAmount } : {}),
       needsReview: valid.needsReview ?? false,
       ownerUid: this.ownerUid,
       source,
@@ -213,6 +216,10 @@ export class FirestoreDataSource implements DataSource {
       category: valid.category,
       // Clear any stale matched-term when an edit no longer auto-categorises.
       autoMatchedTerm: valid.autoMatchedTerm ?? deleteField(),
+      // The caption is passed back through by the form only while the amount is
+      // unchanged, so an absent one here means "the amount moved" — drop it
+      // rather than let it misdescribe the new value (design.md D4).
+      origAmount: valid.origAmount ?? deleteField(),
       needsReview: valid.needsReview ?? false,
     });
   }

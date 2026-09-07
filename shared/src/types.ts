@@ -49,6 +49,14 @@ export interface SpendingInput {
    * assigned automatically; absent for manual picks and uncategorized entries.
    */
   autoMatchedTerm?: string;
+  /**
+   * Display-only text describing what was actually entered when the amount was
+   * converted from a non-base currency, e.g. `"11 euro @ 5.2584"` (design.md
+   * D2). Nothing parses, aggregates or filters on it — it exists purely so a
+   * converted record can still be explained later. Absent for RON entries and
+   * for every record written before conversion existed.
+   */
+  origAmount?: string;
 }
 
 /**
