@@ -59,4 +59,4 @@
 
 - [x] 8.1 Typecheck and build: `npm run build:shared` then `npm run build:web`.
 - [ ] 8.2 Manually verify the four states in the app: RON entry unchanged, a EUR entry converting and captioned, edit showing the caption read-only with no picker, and `/demo` making no rate request (check the network panel).
-- [ ] 8.3 Open a PR on a `feat/` branch referencing the change, and let CI run before merging.
+- [x] 8.3 Open a PR on a `feat/` branch referencing the change, and let CI run before merging.
