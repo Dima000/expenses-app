@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { Info } from 'lucide-react';
 import {
   BASE_CURRENCY,
   CURRENCIES,
@@ -32,6 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -58,6 +60,28 @@ interface SpendingFormProps {
   } | null;
   /** Source recorded when creating a new entry (defaults to 'web'). */
   addSource?: SpendingSource;
+}
+
+const ENTRY_HINT = 'Type the amount first; the rest becomes the comment.';
+
+/** ⓘ button that toggles a popover with a hint (tap works where hover can't). */
+function InfoHint({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={label}
+          className="inline-flex shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          <Info className="h-4 w-4" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="text-sm">
+        {children}
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 /** Add/edit spending form. Create and edit share one validated form. */
@@ -188,14 +212,22 @@ export function SpendingForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{editing ? 'Edit spending' : 'Add spending'}</DialogTitle>
+      {/* Top-anchored and height-capped so the dialog doesn't re-centre as the
+          mobile keyboard opens (design.md D4). Only the form row scrolls, so the
+          header and the close button stay put. */}
+      <DialogContent className="top-[10dvh] max-h-[80dvh] translate-y-0 grid-rows-[auto_minmax(0,1fr)]">
+        <DialogHeader className="text-left">
+          {/* -mt-2 h-4 centres the row on the close button (top-4, 16px icon);
+              pr-6 keeps the title clear of it. */}
+          <div className="-mt-2 flex h-4 items-center pr-6">
+            <DialogTitle>{editing ? 'Edit spending' : 'Add spending'}</DialogTitle>
+          </div>
           <DialogDescription>
             Amounts are stored in whole units; fractional values round up.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="grid gap-4">
+        {/* -m-1 p-1 leaves room for focus rings inside the scroll clip. */}
+        <form onSubmit={handleSubmit} className="-m-1 grid gap-4 overflow-y-auto p-1">
           {editing ? (
             <>
               <div className="grid gap-2">
@@ -233,37 +265,38 @@ export function SpendingForm({
           ) : (
             <>
               <div className="grid gap-2">
-                <Label htmlFor="entry">Amount & note</Label>
-                <Input
-                  id="entry"
-                  value={entry}
-                  onChange={(e) => handleEntryChange(e.target.value)}
-                  placeholder="e.g. 12 lunch with team"
-                  autoFocus
-                />
-                <p className="text-xs text-muted-foreground">
-                  The first number becomes the amount; the rest is saved as the comment.
-                </p>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="currency">Currency</Label>
-                <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
-                  <SelectTrigger id="currency">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CURRENCIES.map((c) => (
-                      <SelectItem
-                        key={c.code}
-                        value={c.code}
-                        // RON is always selectable; the rest need a cached rate.
-                        disabled={c.code !== BASE_CURRENCY && !rates}
-                      >
-                        {c.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-1.5">
+                  <Label htmlFor="entry">Amount & note</Label>
+                  <InfoHint label="How amount and note work">{ENTRY_HINT}</InfoHint>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Input
+                    id="entry"
+                    className="min-w-0 flex-1"
+                    value={entry}
+                    onChange={(e) => handleEntryChange(e.target.value)}
+                    placeholder="e.g. 12 lunch with team"
+                    autoFocus
+                  />
+                  <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
+                    <SelectTrigger aria-label="Currency" className="w-auto shrink-0 gap-2">
+                      {/* Code only when closed; the list keeps the full labels. */}
+                      <SelectValue>{currency}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CURRENCIES.map((c) => (
+                        <SelectItem
+                          key={c.code}
+                          value={c.code}
+                          // RON is always selectable; the rest need a cached rate.
+                          disabled={c.code !== BASE_CURRENCY && !rates}
+                        >
+                          {c.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 {!rates && (
                   <p className="text-xs text-muted-foreground">
                     Foreign currencies are unavailable until you connect once — exchange
