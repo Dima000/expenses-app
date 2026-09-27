@@ -26,18 +26,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { NativeSelect } from '@/components/ui/native-select';
+import { CategorySelect } from '@/components/CategorySelect';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { CategorySelect } from '@/components/CategorySelect';
 import { useDataSource } from '@/lib/dataSource';
 import { todayString } from '@/lib/date';
 import { readRates } from '@/lib/fx';
@@ -278,24 +272,23 @@ export function SpendingForm({
                     placeholder="e.g. 12 lunch with team"
                     autoFocus
                   />
-                  <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
-                    <SelectTrigger aria-label="Currency" className="w-auto shrink-0 gap-2">
-                      {/* Code only when closed; the list keeps the full labels. */}
-                      <SelectValue>{currency}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CURRENCIES.map((c) => (
-                        <SelectItem
-                          key={c.code}
-                          value={c.code}
-                          // RON is always selectable; the rest need a cached rate.
-                          disabled={c.code !== BASE_CURRENCY && !rates}
-                        >
-                          {c.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <NativeSelect
+                    aria-label="Currency"
+                    className="w-auto shrink-0"
+                    value={currency}
+                    onChange={(e) => setCurrency(e.target.value as Currency)}
+                  >
+                    {CURRENCIES.map((c) => (
+                      <option
+                        key={c.code}
+                        value={c.code}
+                        // RON is always selectable; the rest need a cached rate.
+                        disabled={c.code !== BASE_CURRENCY && !rates}
+                      >
+                        {c.code}
+                      </option>
+                    ))}
+                  </NativeSelect>
                 </div>
                 {!rates && (
                   <p className="text-xs text-muted-foreground">

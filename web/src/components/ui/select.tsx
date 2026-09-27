@@ -3,7 +3,43 @@ import * as SelectPrimitive from '@radix-ui/react-select';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const Select = SelectPrimitive.Root;
+/**
+ * Radix closes an open Select on every window `resize`, so on Android the
+ * dropdown snaps shut as the keyboard slides away. Ignore closes caused by a
+ * resize. This relies on our listener (added on mount) running before Radix's,
+ * which is only added once the content opens.
+ */
+function Select({
+  open: openProp,
+  defaultOpen = false,
+  onOpenChange,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Root>) {
+  const [openState, setOpenState] = React.useState(defaultOpen);
+  const open = openProp ?? openState;
+  const resizing = React.useRef(false);
+
+  React.useEffect(() => {
+    const mark = () => {
+      resizing.current = true;
+      setTimeout(() => (resizing.current = false));
+    };
+    window.addEventListener('resize', mark);
+    return () => window.removeEventListener('resize', mark);
+  }, []);
+
+  return (
+    <SelectPrimitive.Root
+      {...props}
+      open={open}
+      onOpenChange={(next) => {
+        if (!next && resizing.current) return;
+        setOpenState(next);
+        onOpenChange?.(next);
+      }}
+    />
+  );
+}
 const SelectGroup = SelectPrimitive.Group;
 const SelectValue = SelectPrimitive.Value;
 
