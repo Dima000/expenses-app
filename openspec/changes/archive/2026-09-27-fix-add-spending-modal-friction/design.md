@@ -15,7 +15,7 @@ changes, and its lower half, including the submit button, can end up behind the 
 **Goals:**
 - Fewer visible lines in the form; hints available on demand.
 - Amount entry and currency choice on one row.
-- A dialog that stays still with the keyboard up and keeps the submit button reachable.
+- A dialog that stays still when the keyboard opens.
 
 **Non-Goals:**
 - The Android "first tap only dismisses the keyboard" dropdown bug (Radix Select closes on
@@ -51,13 +51,15 @@ without layout changes.
 
 ### D4. Content height capped at 80dvh, top-anchored, override per call site
 The override is applied through `className` on `SpendingForm`'s `DialogContent` only:
-`top-[10dvh] translate-y-0 max-h-[80dvh] overflow-y-auto` on all screen sizes (an earlier
+`top-[10dvh] translate-y-0 max-h-[80dvh] grid-rows-[auto_minmax(0,1fr)]` on all screen sizes (an earlier
 `top-4` on mobile sat too close to the top). `dvh` keeps the cap correct when mobile browser
 toolbars show or hide. `max-h` rather than a fixed `h` keeps the
 submit button directly under the fields ("up to 80%" is the lower-friction option: with a fixed
 80% height and the button pinned to the bottom, the button sits behind the keyboard).
 `tailwind-merge` in `cn()` resolves the conflicting `top`/`translate-y` classes in favour of
-the override, and the base `translate-x-[-50%]` is unaffected.
+the override, and the base `translate-x-[-50%]` is unaffected. The form (second grid row) has
+`overflow-y-auto` rather than `DialogContent`, so the header and the absolutely-positioned close
+button do not scroll out of view; `-m-1 p-1` on the form keeps input focus rings from being clipped.
 *Alternative:* change `DialogContent` globally, which is rejected because the delete confirmation
 does not need it.
 
@@ -67,7 +69,7 @@ does not need it.
   the keyboard may cover the submit button on small devices; the dialog still doesn't move.
   If that becomes a problem, `interactive-widget=resizes-content` in the viewport meta is the
   app-wide follow-up.
-- [Hints are less discoverable] → The ⓘ sits next to the title, and the input placeholder
+- [Entry hint is less discoverable] → The ⓘ sits next to the "Amount & note" label, and the input placeholder
   (`e.g. 12 lunch with team`) already shows the format.
 - [Top-anchored dialog looks off-centre on desktop] → `top-[10dvh]` keeps it visually
   balanced for a short dialog.

@@ -213,8 +213,9 @@ export function SpendingForm({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {/* Top-anchored and height-capped so the dialog doesn't re-centre as the
-          mobile keyboard opens (design.md D4). */}
-      <DialogContent className="top-[10dvh] max-h-[80dvh] translate-y-0 overflow-y-auto">
+          mobile keyboard opens (design.md D4). Only the form row scrolls, so the
+          header and the close button stay put. */}
+      <DialogContent className="top-[10dvh] max-h-[80dvh] translate-y-0 grid-rows-[auto_minmax(0,1fr)]">
         <DialogHeader className="text-left">
           {/* -mt-2 h-4 centres the row on the close button (top-4, 16px icon);
               pr-6 keeps the title clear of it. */}
@@ -225,7 +226,8 @@ export function SpendingForm({
             Amounts are stored in whole units; fractional values round up.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="grid gap-4">
+        {/* -m-1 p-1 leaves room for focus rings inside the scroll clip. */}
+        <form onSubmit={handleSubmit} className="-m-1 grid gap-4 overflow-y-auto p-1">
           {editing ? (
             <>
               <div className="grid gap-2">
