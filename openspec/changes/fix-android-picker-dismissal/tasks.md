@@ -13,6 +13,6 @@
 ## 3. Verify and ship
 
 - [x] 3.1 `npm run build:web` passes (typecheck + build)
-- [ ] 3.2 Deploy and verify on the Android PWA: with the keyboard up, the Category dropdown stays open, and the Currency picker opens and shows codes only
-- [ ] 3.3 Check that the inline assign-category picker still opens, selects and closes normally
+- [x] 3.2 Deploy and verify on the Android PWA: with the keyboard up, the Category dropdown stays open, and the Currency picker opens and shows codes only
+- [x] 3.3 Check that the inline assign-category picker still opens, selects and closes normally
 - [x] 3.4 Rename the branch to `fix/android-picker-dismissal`, commit, push and open a PR
