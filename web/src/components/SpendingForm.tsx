@@ -309,6 +309,9 @@ export function SpendingForm({
             <Input
               id="date"
               type="date"
+              // Input's default `flex` puts the calendar icon right after the date
+              // text; `block` lets Chrome push it to the right edge.
+              className="block"
               value={date}
               onChange={(e) => setDate(e.target.value)}
               // Chrome on Android only opens the calendar from its small icon; a tap

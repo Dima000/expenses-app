@@ -58,6 +58,12 @@ already required to survive regeneration. Because the app is dark-only, applying
 `<meta name="color-scheme" content="dark">` in `index.html`. It does the same thing but
 puts theme decisions in two places. Rejected for one source of truth.
 
+**D3. Render the Date input as `block`.** The shared `Input` uses `display: flex`. On a date
+input, that makes Chrome draw the calendar icon right after the date text instead of at the
+right edge. A side-by-side check in desktop Chrome showed that `display: block` puts the
+icon back at the edge. The override goes on the Date input only (`className="block"`;
+`cn`/tailwind-merge lets it replace `flex`), so other inputs are unchanged.
+
 ## Risks / Trade-offs
 
 - [The root cause is unconfirmed] → The fix works whether the segmented layout comes from
