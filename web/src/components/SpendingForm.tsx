@@ -225,7 +225,7 @@ export function SpendingForm({
           {editing ? (
             <>
               <div className="grid gap-2">
-                <Label htmlFor="amount">Amount</Label>
+                <Label htmlFor="amount" className="justify-self-start">Amount</Label>
                 <Input
                   id="amount"
                   type="number"
@@ -247,7 +247,7 @@ export function SpendingForm({
                 )}
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="comment">Comment</Label>
+                <Label htmlFor="comment" className="justify-self-start">Comment</Label>
                 <Input
                   id="comment"
                   value={comment}
@@ -305,7 +305,7 @@ export function SpendingForm({
             </>
           )}
           <div className="grid gap-2">
-            <Label htmlFor="date">Date</Label>
+            <Label htmlFor="date" className="justify-self-start">Date</Label>
             <Input
               id="date"
               type="date"
@@ -327,7 +327,7 @@ export function SpendingForm({
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="category">Category</Label>
+            <Label htmlFor="category" className="justify-self-start">Category</Label>
             <CategorySelect
               id="category"
               value={category}
