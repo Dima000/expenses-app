@@ -134,5 +134,7 @@
   }
   html {
     @apply font-sans;
+    /* The app is dark-only; draw native controls (date icon, pickers) for it. */
+    color-scheme: dark;
   }
 }

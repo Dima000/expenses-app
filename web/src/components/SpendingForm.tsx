@@ -225,7 +225,7 @@ export function SpendingForm({
           {editing ? (
             <>
               <div className="grid gap-2">
-                <Label htmlFor="amount">Amount</Label>
+                <Label htmlFor="amount" className="justify-self-start">Amount</Label>
                 <Input
                   id="amount"
                   type="number"
@@ -247,7 +247,7 @@ export function SpendingForm({
                 )}
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="comment">Comment</Label>
+                <Label htmlFor="comment" className="justify-self-start">Comment</Label>
                 <Input
                   id="comment"
                   value={comment}
@@ -305,11 +305,29 @@ export function SpendingForm({
             </>
           )}
           <div className="grid gap-2">
-            <Label htmlFor="date">Date</Label>
-            <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <Label htmlFor="date" className="justify-self-start">Date</Label>
+            <Input
+              id="date"
+              type="date"
+              // Input's default `flex` puts the calendar icon right after the date
+              // text; `block` lets Chrome push it to the right edge.
+              className="block"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              // Chrome on Android only opens the calendar from its small icon; a tap
+              // on the digits just selects them. Open it on any tap. showPicker can be
+              // missing or throw (e.g. already open) — then the default behaviour stays.
+              onClick={(e) => {
+                try {
+                  e.currentTarget.showPicker?.();
+                } catch {
+                  // ignore
+                }
+              }}
+            />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="category">Category</Label>
+            <Label htmlFor="category" className="justify-self-start">Category</Label>
             <CategorySelect
               id="category"
               value={category}
