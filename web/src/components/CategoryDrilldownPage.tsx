@@ -52,22 +52,13 @@ export function CategoryDrilldownPage({
 
   const { name: categoryName, colorId } = resolveCategoryDisplay(categoryId, categories);
 
-  const filtered = React.useMemo(
-    () => spendingsForCategory(spendings ?? [], categoryId, categories),
-    [spendings, categories, categoryId],
-  );
+  const filtered = spendingsForCategory(spendings ?? [], categoryId, categories);
 
-  const total = React.useMemo(
-    () => filtered.reduce((sum, s) => sum + (s.amount || 0), 0),
-    [filtered],
-  );
+  const total = filtered.reduce((sum, s) => sum + (s.amount || 0), 0);
 
   const monthlyPoints = useMonthlyTrendPoints(filtered, unit, anchor);
 
-  const dailyTotals = React.useMemo(
-    () => (unit === 'month' ? aggregateByDay(filtered, anchor) : []),
-    [filtered, unit, anchor],
-  );
+  const dailyTotals = unit === 'month' ? aggregateByDay(filtered, anchor) : [];
 
   function openEdit(s: Spending) {
     setEditing(s);

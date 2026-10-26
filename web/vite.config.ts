@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import react, { reactCompilerPreset } from '@vitejs/plugin-react';
+import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { fileURLToPath, URL } from 'node:url';
@@ -7,6 +8,9 @@ import { fileURLToPath, URL } from 'node:url';
 export default defineConfig({
   plugins: [
     react(),
+    // React Compiler (auto-memoization) via Babel — the stable route; plugin-react's
+    // built-in `compiler` option uses the experimental Rust port.
+    babel({ presets: [reactCompilerPreset()] }),
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',

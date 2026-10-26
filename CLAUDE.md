@@ -26,3 +26,10 @@
 ## Deploy
 - REST endpoint (`POST /spending`) is deployed but `invoker: 'private'` by choice;
   flip to `'public'` and redeploy to enable it. The web + voice app doesn't use it.
+
+## React (web)
+- React 19 + React Compiler. Don't add `useMemo`/`useCallback`/`memo` for
+  performance; use them only when identity is needed for correctness.
+- Pass `ref` as a plain prop instead of `forwardRef`.
+- Avoid `try … finally` / `try` without `catch` in components: the compiler
+  silently skips them (as `SpendingForm`, `SpendingTable` currently are).

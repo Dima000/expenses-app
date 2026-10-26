@@ -131,42 +131,28 @@ function AppShell() {
   const spendingsLoading = spendings === null;
   // A spending counts as uncategorised when its stored value doesn't resolve to
   // a current category — this includes rows pointing at a removed category.
-  const isUncategorized = React.useCallback(
-    (s: Spending) => resolveCategory(s.category, categories) === null,
-    [categories],
-  );
-  const uncategorizedCount = React.useMemo(
-    () => (spendings ?? []).filter(isUncategorized).length,
-    [spendings, isUncategorized],
-  );
-  const total = React.useMemo(
-    () => (spendings ?? []).reduce((sum, s) => sum + (s.amount || 0), 0),
-    [spendings],
-  );
+  const isUncategorized = (s: Spending) => resolveCategory(s.category, categories) === null;
+  const uncategorizedCount = (spendings ?? []).filter(isUncategorized).length;
+  const total = (spendings ?? []).reduce((sum, s) => sum + (s.amount || 0), 0);
   // Each quick filter is a predicate; the visible list is the active filter's
   // matches, or the whole month when no filter is active.
-  const predicates = React.useMemo<Record<FilterId, (s: Spending) => boolean>>(
-    () => ({
-      uncategorized: isUncategorized,
-      today: (s) => s.date === todayString(),
-      yesterday: (s) => s.date === yesterdayString(),
-    }),
-    [isUncategorized],
-  );
-  const visible = React.useMemo(() => {
-    const rows = spendings ?? [];
-    return activeFilter ? rows.filter(predicates[activeFilter]) : rows;
-  }, [spendings, activeFilter, predicates]);
+  const predicates: Record<FilterId, (s: Spending) => boolean> = {
+    uncategorized: isUncategorized,
+    today: (s) => s.date === todayString(),
+    yesterday: (s) => s.date === yesterdayString(),
+  };
+  const rows = spendings ?? [];
+  const visible = activeFilter ? rows.filter(predicates[activeFilter]) : rows;
 
   // Exclusive: clicking the active filter clears it, otherwise selects it.
-  const toggleFilter = React.useCallback((id: FilterId) => {
+  const toggleFilter = (id: FilterId) => {
     setActiveFilter((prev) => (prev === id ? null : id));
-  }, []);
+  };
 
-  const openEdit = React.useCallback((s: Spending) => {
+  const openEdit = (s: Spending) => {
     setEditing(s);
     setFormOpen(true);
-  }, []);
+  };
   const openAdd = () => {
     setEditing(null);
     setAddPrefill(null);
@@ -174,12 +160,12 @@ function AppShell() {
     setFormOpen(true);
   };
   // Voice capture opens the add form prefilled for review — nothing is saved yet.
-  const openVoiceReview = React.useCallback((capture: VoiceCapture) => {
+  const openVoiceReview = (capture: VoiceCapture) => {
     setEditing(null);
     setAddPrefill(capture);
     setAddSource('voice');
     setFormOpen(true);
-  }, []);
+  };
 
   // Both gates are bypassed in the demo: it renders immediately, signed in or
   // out, without waiting on auth to resolve. One short-circuit each — no

@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { groupByCategory, type Category } from '@expenses/shared';
 import { Button } from '@/components/ui/button';
@@ -36,13 +35,10 @@ export function ReportsPage({
 }: ReportsPageProps) {
   const { spendings, loading } = useRangeSpendings(unit, anchor);
 
-  const rows = React.useMemo(
-    () => groupByCategory(spendings ?? [], categories),
-    [spendings, categories],
-  );
+  const rows = groupByCategory(spendings ?? [], categories);
   // Sum the (few) category rows rather than re-reducing every spending —
   // groupByCategory already did that pass to compute each row's total.
-  const total = React.useMemo(() => rows.reduce((sum, r) => sum + r.total, 0), [rows]);
+  const total = rows.reduce((sum, r) => sum + r.total, 0);
 
   const monthlyPoints = useMonthlyTrendPoints(spendings ?? [], unit, anchor);
 

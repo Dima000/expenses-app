@@ -31,7 +31,7 @@ export function CategoriesPage({ categories, onClose }: CategoriesPageProps) {
   const [newName, setNewName] = React.useState('');
   const [addError, setAddError] = React.useState<string | null>(null);
 
-  const sorted = React.useMemo(() => sortCategoriesByName(categories), [categories]);
+  const sorted = sortCategoriesByName(categories);
 
   async function handleAdd() {
     setAddError(null);

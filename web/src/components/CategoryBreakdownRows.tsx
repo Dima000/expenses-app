@@ -1,4 +1,3 @@
-import * as React from 'react';
 import {
   UNCATEGORIZED,
   largestRemainderRound,
@@ -25,10 +24,7 @@ interface CategoryBreakdownRowsProps {
  * category's drill-down.
  */
 export function CategoryBreakdownRows({ rows, categories, onSelect }: CategoryBreakdownRowsProps) {
-  const displayPcts = React.useMemo(
-    () => largestRemainderRound(rows.map((r) => r.share)),
-    [rows],
-  );
+  const displayPcts = largestRemainderRound(rows.map((r) => r.share));
 
   return (
     <div className="rounded-xl border">
