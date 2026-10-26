@@ -39,15 +39,14 @@ export function DrilldownTransactionsTable({ spendings, onEdit }: DrilldownTrans
     }
   }
 
-  const rows = React.useMemo(() => {
-    if (!sortKey) return spendings;
-    const dir = sortDir === 'asc' ? 1 : -1;
-    return [...spendings].sort((a, b) => {
-      if (sortKey === 'amount') return (a.amount - b.amount) * dir;
-      if (sortKey === 'date') return a.date.localeCompare(b.date) * dir;
-      return a.comment.localeCompare(b.comment) * dir;
-    });
-  }, [spendings, sortKey, sortDir]);
+  const dir = sortDir === 'asc' ? 1 : -1;
+  const rows = !sortKey
+    ? spendings
+    : [...spendings].sort((a, b) => {
+        if (sortKey === 'amount') return (a.amount - b.amount) * dir;
+        if (sortKey === 'date') return a.date.localeCompare(b.date) * dir;
+        return a.comment.localeCompare(b.comment) * dir;
+      });
 
   function SortHeader({ sortKeyName, label }: { sortKeyName: SortKey; label: string }) {
     const active = sortKey === sortKeyName;

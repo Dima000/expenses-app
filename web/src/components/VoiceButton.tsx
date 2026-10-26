@@ -33,23 +33,20 @@ export function VoiceButton({ onCapture, autoStart }: VoiceButtonProps) {
   const { supported, listening, start } = useSpeechRecognition();
   const { toast } = useToast();
 
-  const handleTranscript = React.useCallback(
-    (transcript: string) => {
-      const { amount, comment, currency, needsReview } = parseAmountFromTranscript(transcript);
-      // Never invent an amount: leave it blank for the owner to fill in the form.
-      // The amount is raw here — conversion and the round-up happen at save time.
-      onCapture({ amount: needsReview ? '' : String(amount), comment, currency });
-    },
-    [onCapture],
-  );
+  const handleTranscript = (transcript: string) => {
+    const { amount, comment, currency, needsReview } = parseAmountFromTranscript(transcript);
+    // Never invent an amount: leave it blank for the owner to fill in the form.
+    // The amount is raw here — conversion and the round-up happen at save time.
+    onCapture({ amount: needsReview ? '' : String(amount), comment, currency });
+  };
 
-  const beginListening = React.useCallback(() => {
+  const beginListening = () => {
     start(handleTranscript, (err) => {
       if (err !== 'no-speech' && err !== 'aborted') {
         toast({ variant: 'destructive', title: 'Voice capture error', description: err });
       }
     });
-  }, [start, handleTranscript, toast]);
+  };
 
   // PWA "Log by voice" shortcut opens straight into listening.
   const started = React.useRef(false);

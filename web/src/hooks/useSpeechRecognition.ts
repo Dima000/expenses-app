@@ -45,46 +45,43 @@ export interface UseSpeechRecognition {
  * callers hide/disable the mic; the manual add form remains the fallback.
  */
 export function useSpeechRecognition(): UseSpeechRecognition {
-  const supported = React.useMemo(isSpeechRecognitionSupported, []);
+  const supported = isSpeechRecognitionSupported();
   const [listening, setListening] = React.useState(false);
   const recognitionRef = React.useRef<SpeechRecognitionLike | null>(null);
 
-  const stop = React.useCallback(() => {
+  const stop = () => {
     recognitionRef.current?.stop();
     setListening(false);
-  }, []);
+  };
 
-  const start = React.useCallback(
-    (onResult: (transcript: string) => void, onError?: (err: string) => void) => {
-      const Ctor = getRecognitionCtor();
-      if (!Ctor) {
-        onError?.('unsupported');
-        return;
-      }
-      const recognition = new Ctor();
-      recognitionRef.current = recognition;
-      recognition.lang = navigator.language || 'en-US';
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-      recognition.continuous = false;
+  const start = (onResult: (transcript: string) => void, onError?: (err: string) => void) => {
+    const Ctor = getRecognitionCtor();
+    if (!Ctor) {
+      onError?.('unsupported');
+      return;
+    }
+    const recognition = new Ctor();
+    recognitionRef.current = recognition;
+    recognition.lang = navigator.language || 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.continuous = false;
 
-      recognition.onresult = (e) => {
-        const transcript = Array.from({ length: e.results.length }, (_, i) => e.results[i][0].transcript)
-          .join(' ')
-          .trim();
-        onResult(transcript);
-      };
-      recognition.onerror = (e) => {
-        setListening(false);
-        onError?.(e.error);
-      };
-      recognition.onend = () => setListening(false);
+    recognition.onresult = (e) => {
+      const transcript = Array.from({ length: e.results.length }, (_, i) => e.results[i][0].transcript)
+        .join(' ')
+        .trim();
+      onResult(transcript);
+    };
+    recognition.onerror = (e) => {
+      setListening(false);
+      onError?.(e.error);
+    };
+    recognition.onend = () => setListening(false);
 
-      setListening(true);
-      recognition.start();
-    },
-    [],
-  );
+    setListening(true);
+    recognition.start();
+  };
 
   React.useEffect(() => () => recognitionRef.current?.abort(), []);
 

@@ -15,8 +15,8 @@ export function useAuth() {
     return onAuthStateChanged(auth, (user) => setState({ user, loading: false }));
   }, []);
 
-  const signIn = React.useCallback(() => signInWithPopup(auth, googleProvider), []);
-  const logOut = React.useCallback(() => signOut(auth), []);
+  const signIn = () => signInWithPopup(auth, googleProvider);
+  const logOut = () => signOut(auth);
 
   return { ...state, signIn, logOut };
 }

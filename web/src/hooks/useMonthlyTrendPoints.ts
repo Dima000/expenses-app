@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { aggregateByMonth, type Spending } from '@expenses/shared';
 import { MONTH_FULL, MONTH_SHORT } from '@/lib/months';
 import type { PeriodUnit } from '@/lib/date';
@@ -15,16 +14,14 @@ export function useMonthlyTrendPoints(
   anchor: string,
 ): TrendBarChartPoint[] {
   const year = Number(unit === 'year' ? anchor : anchor.slice(0, 4));
-  return React.useMemo(() => {
-    if (unit !== 'year') return [];
-    const totals = aggregateByMonth(spendings, year);
-    const now = new Date();
-    return totals.map((t, i) => ({
-      key: String(i),
-      label: MONTH_FULL[i],
-      shortLabel: MONTH_SHORT[i],
-      total: t,
-      occurred: year < now.getFullYear() || (year === now.getFullYear() && i <= now.getMonth()),
-    }));
-  }, [spendings, unit, year]);
+  if (unit !== 'year') return [];
+  const totals = aggregateByMonth(spendings, year);
+  const now = new Date();
+  return totals.map((t, i) => ({
+    key: String(i),
+    label: MONTH_FULL[i],
+    shortLabel: MONTH_SHORT[i],
+    total: t,
+    occurred: year < now.getFullYear() || (year === now.getFullYear() && i <= now.getMonth()),
+  }));
 }
