@@ -4,8 +4,8 @@
  * amount is converted at write time and only the RON value is persisted.
  */
 
-/** The four currencies offered at entry. Nothing else is convertible. */
-export type Currency = 'RON' | 'EUR' | 'USD' | 'GBP';
+/** The five currencies offered at entry. Nothing else is convertible. */
+export type Currency = 'RON' | 'EUR' | 'USD' | 'GBP' | 'MDL';
 
 /** The single unit every stored amount, total and report is expressed in. */
 export const BASE_CURRENCY: Currency = 'RON';
@@ -24,9 +24,11 @@ export const CURRENCIES: ReadonlyArray<{
   { code: 'EUR', label: 'EUR — euro', captionWord: 'euro' },
   { code: 'USD', label: 'USD — dollars', captionWord: 'dollars' },
   { code: 'GBP', label: 'GBP — pounds', captionWord: 'pounds' },
+  // Not "lei": that would read the same as a RON caption.
+  { code: 'MDL', label: 'MDL — lei moldovenești', captionWord: 'MDL' },
 ];
 
-/** The three currencies that need a rate to be usable. */
+/** The four currencies that need a rate to be usable. */
 export const FOREIGN_CURRENCIES: readonly Currency[] = CURRENCIES.map((c) => c.code).filter(
   (code) => code !== BASE_CURRENCY,
 );
