@@ -3,6 +3,7 @@ import { Info } from 'lucide-react';
 import {
   BASE_CURRENCY,
   CURRENCIES,
+  FOREIGN_CURRENCIES,
   UNCATEGORIZED,
   applyAutoCategory,
   convertToBase,
@@ -105,6 +106,12 @@ export function SpendingForm({
   // gate before the form is usable. Re-read on each open so a refresh that
   // landed since the last one is picked up. `null` = never cached (D8).
   const rates = React.useMemo(() => (open ? readRates() : null), [open]);
+  // Availability is per currency: each comes from its own rate source, and one
+  // source can be cached while another never has been (add-mdl-currency D4).
+  const unavailable = React.useMemo(
+    () => FOREIGN_CURRENCIES.filter((code) => !rates?.[code]),
+    [rates],
+  );
 
   // Reset the fields whenever the dialog opens (for add or a specific edit).
   React.useEffect(() => {
@@ -135,11 +142,13 @@ export function SpendingForm({
       : null;
 
   // A symbol or currency word in the text moves the picker, so the control and
-  // the text can never disagree on screen (design.md D10).
+  // the text can never disagree on screen (design.md D10). Exception: `lei`/`leu`
+  // also name MDL, so a detected RON never overrides an explicit MDL pick —
+  // otherwise "150 lei" typed under MDL would silently store 150 RON.
   function handleEntryChange(next: string) {
     setEntry(next);
     const detected = parseAmountFromTranscript(next).currency;
-    if (detected) setCurrency(detected);
+    if (detected && !(detected === BASE_CURRENCY && currency === 'MDL')) setCurrency(detected);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -282,17 +291,17 @@ export function SpendingForm({
                       <option
                         key={c.code}
                         value={c.code}
-                        // RON is always selectable; the rest need a cached rate.
-                        disabled={c.code !== BASE_CURRENCY && !rates}
+                        // RON is always selectable; the rest need their own cached rate.
+                        disabled={unavailable.includes(c.code)}
                       >
                         {c.code}
                       </option>
                     ))}
                   </NativeSelect>
                 </div>
-                {!rates && (
+                {unavailable.length > 0 && (
                   <p className="text-xs text-muted-foreground">
-                    Foreign currencies are unavailable until you connect once — exchange
+                    {unavailable.join(', ')} unavailable until you connect once — exchange
                     rates are downloaded and kept on this device.
                   </p>
                 )}

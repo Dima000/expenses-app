@@ -367,11 +367,18 @@ test('convert THEN round — the ceiling fires exactly once, after conversion', 
   assert.notEqual(roundUpAmount(convertToBase(10.4, 'EUR', { EUR: 5 })), 55);
 });
 
+test('convertToBase: MDL converts like any foreign currency', () => {
+  // 150 MDL @ 0.2663 = 39.945 → 40
+  assert.equal(roundUpAmount(convertToBase(150, 'MDL', { MDL: 0.2663 })), 40);
+});
+
 test('formatOriginalEntry: one caption format for every writer', () => {
   assert.equal(formatOriginalEntry(11, 'EUR', 5.2584), '11 euro @ 5.2584');
   assert.equal(formatOriginalEntry(12.5, 'GBP', 6.1331), '12.5 pounds @ 6.1331');
   // A longer rate is trimmed to 4 decimals, matching what the cache stores.
   assert.equal(formatOriginalEntry(20, 'USD', 4.515498), '20 dollars @ 4.5155');
+  // MDL captions use the code, so they never read like a RON "lei" caption.
+  assert.equal(formatOriginalEntry(150, 'MDL', 0.2663), '150 MDL @ 0.2663');
 });
 
 test('caption lifecycle: kept while the amount holds, dropped when it moves', () => {
@@ -416,6 +423,17 @@ test('parser: base-currency word is stripped, no conversion implied', () => {
   assert.equal(r.amount, 10);
   assert.equal(r.currency, 'RON');
   assert.equal(r.comment, 'bere');
+});
+
+test('parser: MDL is picker-only — "lei" stays RON, "mdl" is not a currency word', () => {
+  const lei = parseAmountFromTranscript('150 lei cafea');
+  assert.equal(lei.currency, 'RON');
+  assert.equal(lei.comment, 'cafea');
+
+  const mdl = parseAmountFromTranscript('150 mdl cafea');
+  assert.equal(mdl.amount, 150);
+  assert.equal(mdl.currency, null);
+  assert.equal(mdl.comment, 'mdl cafea');
 });
 
 test('parser: an unrecognised trailing word stays in the comment', () => {
