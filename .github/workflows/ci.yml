@@ -26,9 +26,13 @@ jobs:
 
       - run: npm ci
 
+      # build:functions bundles with esbuild, which strips types without
+      # checking them, so functions gets its own tsc pass (after shared is
+      # built, since it imports @expenses/shared's .d.ts).
       - name: Build (typechecks shared, functions, web)
         run: |
           npm run build:shared
+          npm run typecheck:functions
           npm run build:functions
           npm run build:web
 
