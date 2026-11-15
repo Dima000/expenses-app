@@ -25,6 +25,11 @@ import {
   aggregateByMonth,
   aggregateByDay,
   niceAxisMax,
+  parseSpendingsCsv,
+  importRowErrors,
+  importRowToInput,
+  MAX_IMPORT_ROWS,
+  IMPORT_AMOUNT_FORMAT_ERROR,
 } from '@expenses/shared';
 
 // A small owner category set used across the matcher/uniqueness tests.
@@ -452,4 +457,139 @@ test('parser: decimals are returned raw for the write path to round', () => {
   const r = parseAmountFromTranscript('12.50 lunch');
   assert.equal(r.amount, 12.5);
   assert.equal(roundUpAmount(r.amount), 13);
+});
+
+// --- CSV import (add-csv-import) ---------------------------------------------
+
+/** Parse and assert success, returning the rows. */
+function csvRows(text, cats = CATS) {
+  const r = parseSpendingsCsv(text, cats);
+  assert.equal(r.ok, true, r.ok ? '' : r.error);
+  return r.rows;
+}
+
+test('csv: minimal file gives one valid uncategorized row', () => {
+  const [row] = csvRows('date,amount\n2026-03-02,45\n');
+  assert.equal(row.date, '2026-03-02');
+  assert.equal(row.amount, 45);
+  assert.equal(row.comment, '');
+  assert.equal(row.category, 'uncategorized');
+  assert.deepEqual(importRowErrors(row), []);
+});
+
+test('csv: columns are matched by name, any order and case', () => {
+  const [row] = csvRows('Category,Comment,AMOUNT,Date\nHealth,pills,12,2026-03-02');
+  assert.equal(row.amount, 12);
+  assert.equal(row.comment, 'pills');
+  assert.equal(row.category, 'health');
+  assert.equal(row.date, '2026-03-02');
+});
+
+test('csv: quoted fields, escaped quotes, embedded commas and newlines', () => {
+  const rows = csvRows(
+    'date,amount,comment\r\n2026-03-02,5,"coffee, croissant"\r\n2026-03-03,6,"say ""hi""\nthere"\r\n2026-03-04,7,x',
+  );
+  assert.equal(rows[0].comment, 'coffee, croissant');
+  assert.equal(rows[1].comment, 'say "hi"\nthere');
+  // Line numbers count physical lines, so the row after the multi-line one is line 5.
+  assert.deepEqual(rows.map((r) => r.line), [2, 3, 5]);
+});
+
+test('csv: a quote mid-field is a literal character, not a quoted section', () => {
+  const rows = csvRows('date,amount,comment\n2026-03-02,120,TV 55" stand\n2026-03-03,6,lunch');
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].comment, 'TV 55" stand');
+  assert.equal(rows[1].comment, 'lunch');
+});
+
+test('csv: an unterminated quoted field is a file error naming its line', () => {
+  const r = parseSpendingsCsv('date,amount,comment\n2026-03-02,5,"coffee\n2026-03-03,6,lunch', CATS);
+  assert.equal(r.ok, false);
+  assert.match(r.error, /closing quote.*line 2/);
+});
+
+test('csv: an amount beyond the safe-integer range is a row error', () => {
+  const [row] = csvRows('date,amount\n2026-03-02,99999999999999999999');
+  assert.ok(importRowErrors(row).some((e) => /too large/.test(e)));
+});
+
+test('csv: BOM and blank lines are ignored; extra columns ignored', () => {
+  const rows = csvRows('\uFEFFdate,amount,notes\n\n2026-03-02,1,zzz\n  \n2026-03-03,2\n\n');
+  assert.equal(rows.length, 2);
+  assert.equal(rows[1].amount, 2);
+});
+
+test('csv: missing required header is a file error', () => {
+  const r = parseSpendingsCsv('date,comment\n2026-03-02,x', CATS);
+  assert.equal(r.ok, false);
+  assert.match(r.error, /amount/);
+});
+
+test('csv: empty file and header-only file are rejected', () => {
+  assert.equal(parseSpendingsCsv('', CATS).ok, false);
+  assert.equal(parseSpendingsCsv('\n\n', CATS).ok, false);
+  assert.equal(parseSpendingsCsv('date,amount\n', CATS).ok, false);
+});
+
+test('csv: 500 rows accepted, 501 rejected whole', () => {
+  const body = (n) => 'date,amount\n' + Array.from({ length: n }, () => '2026-03-02,1').join('\n');
+  assert.equal(csvRows(body(MAX_IMPORT_ROWS)).length, 500);
+  const r = parseSpendingsCsv(body(MAX_IMPORT_ROWS + 1), CATS);
+  assert.equal(r.ok, false);
+  assert.match(r.error, /500/);
+});
+
+test('csv: fractional amount rounds up', () => {
+  assert.equal(csvRows('date,amount\n2026-03-02,12.34')[0].amount, 13);
+});
+
+test('csv: bad amounts are row errors, not file errors', () => {
+  const rows = csvRows('date,amount\n2026-03-02,"12,50"\n2026-03-02,-3\n2026-03-02,\n2026-03-02,1 000\n2026-03-02,0');
+  for (const row of rows.slice(0, 4)) {
+    assert.equal(row.amount, null);
+    assert.deepEqual(importRowErrors(row), [IMPORT_AMOUNT_FORMAT_ERROR]);
+  }
+  assert.equal(rows[4].amount, 0);
+  assert.deepEqual(importRowErrors(rows[4]), ['amount must be a positive integer']);
+});
+
+test('csv: invalid date is a row error', () => {
+  const [row] = csvRows('date,amount\n02.03.2026,5');
+  assert.deepEqual(importRowErrors(row), ['date must be a valid YYYY-MM-DD string']);
+});
+
+test('csv: fixing a row makes it valid (validity is derived)', () => {
+  const [row] = csvRows('date,amount\n02.03.2026,abc');
+  assert.equal(importRowErrors(row).length, 2);
+  assert.deepEqual(importRowErrors({ ...row, date: '2026-03-02', amount: 4 }), []);
+});
+
+test('csv: matching category name is applied case-insensitively', () => {
+  const [row] = csvRows('date,amount,category\n2026-03-02,5,groceries');
+  assert.equal(row.category, 'groceries');
+  assert.equal(row.autoMatchedTerm, undefined);
+});
+
+test('csv: unknown category falls back to keyword matching, never created', () => {
+  const [row] = csvRows('date,amount,comment,category\n2026-03-02,5,weekly market run,Travel');
+  assert.equal(row.category, 'groceries');
+  assert.equal(row.autoMatchedTerm, 'market');
+  assert.equal(JSON.stringify(row).includes('Travel'), false);
+});
+
+test('csv: no category and no keyword leaves the row uncategorized', () => {
+  const [row] = csvRows('date,amount,comment\n2026-03-02,5,something');
+  assert.equal(row.category, 'uncategorized');
+});
+
+test('csv: explicit category beats keywords', () => {
+  const [row] = csvRows('date,amount,comment,category\n2026-03-02,5,market,Health');
+  assert.equal(row.category, 'health');
+  assert.equal(row.autoMatchedTerm, undefined);
+});
+
+test('csv: importRowToInput carries the matched term only when set', () => {
+  const [auto, plain] = csvRows('date,amount,comment\n2026-03-02,5,vet\n2026-03-02,6,x');
+  assert.equal(importRowToInput(auto).autoMatchedTerm, 'vet');
+  assert.equal('autoMatchedTerm' in importRowToInput(plain), false);
 });

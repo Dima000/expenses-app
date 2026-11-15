@@ -5,7 +5,7 @@ import {
   type Spending,
   type SpendingSource,
 } from '@expenses/shared';
-import { BarChart3, LogOut, Plus, Tags } from 'lucide-react';
+import { BarChart3, FileUp, LogOut, Plus, Tags } from 'lucide-react';
 import {
   BrowserRouter,
   Navigate,
@@ -36,6 +36,7 @@ import { SpendingTable } from '@/components/SpendingTable';
 import { SpendingForm } from '@/components/SpendingForm';
 import { CategoriesPage } from '@/components/CategoriesPage';
 import { ReportsPage } from '@/components/ReportsPage';
+import { ImportPage } from '@/components/ImportPage';
 import { CategoryDrilldownPage } from '@/components/CategoryDrilldownPage';
 import { DemoBanner } from '@/components/DemoBanner';
 import { VoiceButton, type VoiceCapture } from '@/components/VoiceButton';
@@ -79,6 +80,9 @@ function AppShell() {
   // this drives the loading state so the page doesn't flash empty and jump.
   const [spendings, setSpendings] = React.useState<Spending[] | null>(null);
   const [categories, setCategories] = React.useState<Category[]>([]);
+  // False until the subscription's first snapshot — `[]` alone can't tell
+  // "still loading" from "loaded, none". The CSV import waits on it.
+  const [categoriesReady, setCategoriesReady] = React.useState(false);
   // Exclusive quick filter; `null` = no filter, show the whole month.
   const [activeFilter, setActiveFilter] = React.useState<FilterId | null>(null);
   const [formOpen, setFormOpen] = React.useState(false);
@@ -121,11 +125,15 @@ function AppShell() {
 
   // Live subscription to the owner's categories (seeds defaults on first run).
   React.useEffect(() => {
+    setCategoriesReady(false);
     if (!dataSource) {
       setCategories([]);
       return;
     }
-    return dataSource.subscribeToCategories(setCategories);
+    return dataSource.subscribeToCategories((next) => {
+      setCategories(next);
+      setCategoriesReady(true);
+    });
   }, [dataSource]);
 
   const spendingsLoading = spendings === null;
@@ -220,6 +228,12 @@ function AppShell() {
         element={<ReportsRoute base={base} categories={categories} />}
       />
       <Route
+        path="import"
+        element={
+          <ImportRoute base={base} categories={categories} categoriesReady={categoriesReady} />
+        }
+      />
+      <Route
         path="reports/:categoryId"
         element={<CategoryDrilldownRoute base={base} categories={categories} />}
       />
@@ -301,6 +315,14 @@ function Dashboard({
             onClick={() => navigate(withBase(base, '/reports'))}
           >
             <BarChart3 />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Import CSV"
+            onClick={() => navigate(withBase(base, '/import'))}
+          >
+            <FileUp />
           </Button>
           <Button
             variant="ghost"
@@ -403,6 +425,23 @@ function CategoriesRoute({ base, categories }: CategoriesRouteProps) {
   return (
     <CategoriesPage
       categories={categories}
+      onClose={() => navigate(withBase(base, '/'))}
+    />
+  );
+}
+
+interface ImportRouteProps {
+  base: string;
+  categories: Category[];
+  categoriesReady: boolean;
+}
+
+function ImportRoute({ base, categories, categoriesReady }: ImportRouteProps) {
+  const navigate = useNavigate();
+  return (
+    <ImportPage
+      categories={categories}
+      categoriesReady={categoriesReady}
       onClose={() => navigate(withBase(base, '/'))}
     />
   );

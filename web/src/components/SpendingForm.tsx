@@ -55,6 +55,12 @@ interface SpendingFormProps {
   } | null;
   /** Source recorded when creating a new entry (defaults to 'web'). */
   addSource?: SpendingSource;
+  /**
+   * Draft mode (add-csv-import D8): when set, a valid submit hands the input to
+   * this callback and closes, instead of writing through the data source. Used
+   * by the import preview to edit rows that aren't stored yet.
+   */
+  onSave?: (input: SpendingInput) => void;
 }
 
 const ENTRY_HINT = 'Type the amount first; the rest becomes the comment.';
@@ -88,6 +94,7 @@ export function SpendingForm({
   defaultDate,
   prefill,
   addSource = 'web',
+  onSave,
 }: SpendingFormProps) {
   const dataSource = useDataSource();
   // Edit mode binds discrete amount/comment fields; add mode uses one free-text
@@ -118,7 +125,8 @@ export function SpendingForm({
     if (!open) return;
     setError(null);
     if (editing) {
-      setAmount(String(editing.amount));
+      // An import draft row can hold an unparseable amount (NaN) — show it empty.
+      setAmount(Number.isFinite(editing.amount) ? String(editing.amount) : '');
       setComment(editing.comment ?? '');
       setDate(editing.date);
       setCategory(editing.category);
@@ -198,6 +206,11 @@ export function SpendingForm({
     // when left uncategorized, never overriding an explicit pick. Voice entries
     // flow through here too.
     const categorized = applyAutoCategory(input, categories);
+    if (onSave) {
+      onSave(editing ? { ...categorized, needsReview: false } : categorized);
+      onOpenChange(false);
+      return;
+    }
     setSaving(true);
     try {
       if (editing) {

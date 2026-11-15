@@ -1,6 +1,13 @@
 import * as React from 'react';
 import type { Category, CategoryValue, Spending, SpendingInput, SpendingSource } from '@expenses/shared';
 
+/** Options shared by every record of one `createSpendings` call. */
+export interface BulkCreateOptions {
+  source: SpendingSource;
+  /** Tags every record of this bulk write so it can be found later. */
+  importId: string;
+}
+
 /** Unsubscribe from a live subscription. */
 export type Unsubscribe = () => void;
 
@@ -29,6 +36,12 @@ export interface DataSource {
   ): Unsubscribe;
 
   createSpending(input: SpendingInput, source: SpendingSource): Promise<string>;
+  /**
+   * Create many spendings as one atomic write: every input is validated first
+   * and nothing is stored if any fails. Each record carries the same
+   * `importId` (add-csv-import D9).
+   */
+  createSpendings(inputs: SpendingInput[], options: BulkCreateOptions): Promise<void>;
   updateSpending(id: string, input: SpendingInput): Promise<void>;
   assignCategory(id: string, category: CategoryValue): Promise<void>;
   deleteSpending(id: string): Promise<void>;

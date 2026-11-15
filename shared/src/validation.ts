@@ -44,6 +44,10 @@ export function validateSpending(input: Partial<SpendingInput> | undefined): Val
     errors.push('amount is required');
   } else if (typeof input.amount !== 'number' || !Number.isInteger(input.amount)) {
     errors.push('amount must be a whole integer');
+  } else if (!Number.isSafeInteger(input.amount)) {
+    // Beyond 2^53 the SDK encodes it as a double and the `amount is int`
+    // security rule rejects the write (failing a whole import batch).
+    errors.push('amount is too large');
   } else if (needsReview ? input.amount < 0 : input.amount <= 0) {
     errors.push(
       needsReview

@@ -68,6 +68,12 @@ export interface SpendingDoc<Timestamp = unknown> extends SpendingInput {
   ownerUid: string;
   source: SpendingSource;
   createdAt: Timestamp;
+  /**
+   * Shared by every spending written by one CSV import apply (add-csv-import
+   * D10), so an import can be found and cleaned up manually. Absent for
+   * spendings created any other way. No UI reads it.
+   */
+  importId?: string;
 }
 
 /** A spending doc paired with its Firestore id, as read back by the client. */
@@ -77,6 +83,8 @@ export interface Spending extends SpendingInput {
   source: SpendingSource;
   /** Epoch milliseconds of the server creation timestamp (client-normalized). */
   createdAtMs: number | null;
+  /** See {@link SpendingDoc.importId}. */
+  importId?: string;
 }
 
 /** Firestore top-level collection name for spendings. */
