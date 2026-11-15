@@ -80,6 +80,9 @@ function AppShell() {
   // this drives the loading state so the page doesn't flash empty and jump.
   const [spendings, setSpendings] = React.useState<Spending[] | null>(null);
   const [categories, setCategories] = React.useState<Category[]>([]);
+  // False until the subscription's first snapshot — `[]` alone can't tell
+  // "still loading" from "loaded, none". The CSV import waits on it.
+  const [categoriesReady, setCategoriesReady] = React.useState(false);
   // Exclusive quick filter; `null` = no filter, show the whole month.
   const [activeFilter, setActiveFilter] = React.useState<FilterId | null>(null);
   const [formOpen, setFormOpen] = React.useState(false);
@@ -122,11 +125,15 @@ function AppShell() {
 
   // Live subscription to the owner's categories (seeds defaults on first run).
   React.useEffect(() => {
+    setCategoriesReady(false);
     if (!dataSource) {
       setCategories([]);
       return;
     }
-    return dataSource.subscribeToCategories(setCategories);
+    return dataSource.subscribeToCategories((next) => {
+      setCategories(next);
+      setCategoriesReady(true);
+    });
   }, [dataSource]);
 
   const spendingsLoading = spendings === null;
@@ -222,7 +229,9 @@ function AppShell() {
       />
       <Route
         path="import"
-        element={<ImportRoute base={base} categories={categories} />}
+        element={
+          <ImportRoute base={base} categories={categories} categoriesReady={categoriesReady} />
+        }
       />
       <Route
         path="reports/:categoryId"
@@ -424,13 +433,15 @@ function CategoriesRoute({ base, categories }: CategoriesRouteProps) {
 interface ImportRouteProps {
   base: string;
   categories: Category[];
+  categoriesReady: boolean;
 }
 
-function ImportRoute({ base, categories }: ImportRouteProps) {
+function ImportRoute({ base, categories, categoriesReady }: ImportRouteProps) {
   const navigate = useNavigate();
   return (
     <ImportPage
       categories={categories}
+      categoriesReady={categoriesReady}
       onClose={() => navigate(withBase(base, '/'))}
     />
   );

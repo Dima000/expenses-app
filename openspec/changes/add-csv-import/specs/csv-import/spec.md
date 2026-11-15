@@ -2,7 +2,7 @@
 
 ### Requirement: CSV import format
 
-The system SHALL accept a comma-separated file whose first non-blank line is a header row. Header names SHALL be matched case-insensitively after trimming, in any column order. The recognised columns are `date` (required), `amount` (required), `comment` (optional) and `category` (optional); any other column SHALL be ignored. Fields MAY be double-quoted, with `""` as an escaped quote, and quoted fields MAY contain commas and line breaks. Both LF and CRLF line endings SHALL be accepted, a leading UTF-8 byte-order mark SHALL be ignored, and blank lines SHALL be skipped. All amounts SHALL be interpreted as RON.
+The system SHALL accept a comma-separated file whose first non-blank line is a header row. Header names SHALL be matched case-insensitively after trimming, in any column order. The recognised columns are `date` (required), `amount` (required), `comment` (optional) and `category` (optional); any other column SHALL be ignored. Fields MAY be double-quoted, with `""` as an escaped quote, and quoted fields MAY contain commas and line breaks. A double quote SHALL open a quoted field only at the start of a field; elsewhere it SHALL be read as a literal character. A quoted field left unterminated at the end of the file SHALL be rejected as a file-level error naming the line where it began. Both LF and CRLF line endings SHALL be accepted, a leading UTF-8 byte-order mark SHALL be ignored, and blank lines SHALL be skipped. All amounts SHALL be interpreted as RON.
 
 #### Scenario: Minimal file is accepted
 

@@ -114,7 +114,7 @@ export class FirestoreDataSource implements DataSource {
             category: data.category,
             autoMatchedTerm: data.autoMatchedTerm,
             origAmount: data.origAmount,
-            importId: data.importId,
+            ...(data.importId ? { importId: data.importId } : {}),
             needsReview: data.needsReview ?? false,
             ownerUid: data.ownerUid,
             source: data.source,

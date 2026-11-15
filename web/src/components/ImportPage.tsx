@@ -4,6 +4,7 @@ import {
   colorIdFor,
   importRowErrors,
   importRowToInput,
+  isValidDateString,
   MAX_IMPORT_ROWS,
   parseSpendingsCsv,
   resolveCategory,
@@ -33,6 +34,11 @@ import { useToast } from '@/hooks/use-toast';
 interface ImportPageProps {
   /** The owner's live categories — for parse-time resolution and the pickers. */
   categories: Category[];
+  /**
+   * Whether the categories subscription has delivered its first snapshot.
+   * Names are resolved once at parse time, so parsing waits for this.
+   */
+  categoriesReady: boolean;
   /** Leave the screen (Cancel/Back, and after a successful apply). */
   onClose: () => void;
 }
@@ -47,7 +53,7 @@ function rowAsSpending(row: ImportDraftRow): Spending {
  * in-memory preview, then apply all valid rows as one atomic bulk write.
  * Nothing is stored until Apply.
  */
-export function ImportPage({ categories, onClose }: ImportPageProps) {
+export function ImportPage({ categories, categoriesReady, onClose }: ImportPageProps) {
   const dataSource = useDataSource();
   const { toast } = useToast();
   const fileInput = React.useRef<HTMLInputElement>(null);
@@ -63,10 +69,19 @@ export function ImportPage({ categories, onClose }: ImportPageProps) {
 
   // Validity is derived on every render, so an edit that fixes a row is
   // reflected immediately (design.md D7).
-  const checked = (rows ?? []).map((row) => ({ row, errors: importRowErrors(row) }));
-  const valid = checked.filter((c) => c.errors.length === 0).map((c) => c.row);
+  const checked = (rows ?? []).map((row) => {
+    // Resolved once per row per render; the index is only needed for the color.
+    const resolved = resolveCategory(row.category, categories);
+    return {
+      row,
+      errors: importRowErrors(row),
+      resolved,
+      resolvedIndex: resolved ? categories.indexOf(resolved) : -1,
+    };
+  });
+  const valid = checked.filter((c) => c.errors.length === 0);
   const skippedCount = checked.length - valid.length;
-  const uncategorizedCount = valid.filter((r) => resolveCategory(r.category, categories) === null).length;
+  const uncategorizedCount = valid.filter((c) => c.resolved === null).length;
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -103,12 +118,15 @@ export function ImportPage({ categories, onClose }: ImportPageProps) {
 
   function saveEdit(input: SpendingInput) {
     if (!editing) return;
+    // The dialog doesn't carry the matched term through; keep it while the
+    // category is unchanged, so the record still explains its categorisation.
+    const keptTerm = input.category === editing.category ? editing.autoMatchedTerm : undefined;
     updateRow(editing.id, {
       amount: input.amount,
       date: input.date,
       comment: input.comment,
       category: input.category,
-      autoMatchedTerm: input.autoMatchedTerm,
+      autoMatchedTerm: input.autoMatchedTerm ?? keptTerm,
     });
   }
 
@@ -118,7 +136,7 @@ export function ImportPage({ categories, onClose }: ImportPageProps) {
     setApplying(true);
     setApplyError(null);
     try {
-      await dataSource.createSpendings(valid.map(importRowToInput), {
+      await dataSource.createSpendings(valid.map((c) => importRowToInput(c.row)), {
         source: 'web',
         importId: crypto.randomUUID(),
       });
@@ -136,7 +154,7 @@ export function ImportPage({ categories, onClose }: ImportPageProps) {
   return (
     <div className="mx-auto min-h-dvh max-w-2xl px-4 pb-28 pt-6">
       <header className="mb-4 flex items-center gap-2">
-        <Button variant="ghost" size="icon" aria-label="Back" onClick={onClose}>
+        <Button variant="ghost" size="icon" aria-label="Back" onClick={onClose} disabled={applying}>
           <ArrowLeft />
         </Button>
         <h1 className="text-xl font-semibold">Import CSV</h1>
@@ -151,8 +169,13 @@ export function ImportPage({ categories, onClose }: ImportPageProps) {
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <Button variant="outline" onClick={() => fileInput.current?.click()} disabled={applying}>
-          <FileUp className="mr-1" /> {rows ? 'Choose another file' : 'Choose CSV file'}
+        <Button
+          variant="outline"
+          onClick={() => fileInput.current?.click()}
+          disabled={applying || !categoriesReady}
+        >
+          <FileUp className="mr-1" />{' '}
+          {!categoriesReady ? 'Loading categories…' : rows ? 'Choose another file' : 'Choose CSV file'}
         </Button>
         {fileName && <span className="truncate text-sm text-muted-foreground">{fileName}</span>}
       </div>
@@ -200,9 +223,8 @@ export function ImportPage({ categories, onClose }: ImportPageProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {checked.map(({ row, errors }) => {
+                {checked.map(({ row, errors, resolved, resolvedIndex }) => {
                   const invalid = errors.length > 0;
-                  const resolved = resolveCategory(row.category, categories);
                   // Greyed out, but still editable/removable so it can be fixed.
                   const dim = invalid ? 'opacity-50' : undefined;
                   return (
@@ -210,7 +232,9 @@ export function ImportPage({ categories, onClose }: ImportPageProps) {
                       <TableCell
                         className={`whitespace-nowrap tabular-nums text-muted-foreground ${dim ?? ''}`}
                       >
-                        {row.date ? shortDate(row.date) : '—'}
+                        {/* Raw text for an invalid date: shortDate would roll
+                            2026-02-30 over to a plausible "2 Mar". */}
+                        {!row.date ? '—' : isValidDateString(row.date) ? shortDate(row.date) : row.date}
                       </TableCell>
                       <TableCell className={`text-right font-medium tabular-nums ${dim ?? ''}`}>
                         {row.amount === null ? '—' : row.amount.toLocaleString()}
@@ -227,7 +251,7 @@ export function ImportPage({ categories, onClose }: ImportPageProps) {
                         {resolved ? (
                           <Badge variant="secondary" className="gap-1.5">
                             <CategoryColorDot
-                              colorId={colorIdFor(resolved, categories.indexOf(resolved))}
+                              colorId={colorIdFor(resolved, resolvedIndex)}
                             />
                             {resolved.name}
                           </Badge>

@@ -8,7 +8,7 @@
  * amounts with `.` decimals, rounded up like every other entry path.
  */
 import {
-  applyAutoCategory,
+  categorize,
   findCategoryByName,
   UNCATEGORIZED,
   type CategoryValue,
@@ -55,10 +55,13 @@ interface CsvRecord {
 /**
  * Minimal RFC 4180 reader (design.md D2): `,` separator, `"`-quoted fields with
  * `""` escapes, commas/newlines inside quotes, LF or CRLF, leading BOM ignored.
+ * A `"` only opens a quoted section at the very start of a field; anywhere
+ * else (e.g. an inch mark in `TV 55" stand`) it is a literal character. A
+ * quoted section still open at end of input is a file-level error.
  * Records whose cells are all blank are dropped. Each record keeps the
  * physical line it started on, for pointing the owner at bad rows.
  */
-function readCsv(text: string): CsvRecord[] {
+function readCsv(text: string): { records: CsvRecord[] } | { error: string } {
   const src = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
   const records: CsvRecord[] = [];
   let cells: string[] = [];
@@ -66,12 +69,17 @@ function readCsv(text: string): CsvRecord[] {
   let inQuotes = false;
   let line = 1;
   let recordLine = 1;
+  // Whether the current field started with an opening quote (only then can
+  // a `"` open a quoted section), and where it opened, for the error message.
+  let fieldStarted = false;
+  let quoteLine = 1;
 
   const endRecord = () => {
     cells.push(field);
     if (cells.some((c) => c.trim() !== '')) records.push({ line: recordLine, cells });
     cells = [];
     field = '';
+    fieldStarted = false;
   };
 
   for (let i = 0; i < src.length; i++) {
@@ -90,11 +98,14 @@ function readCsv(text: string): CsvRecord[] {
       }
       continue;
     }
-    if (ch === '"') {
+    if (ch === '"' && !fieldStarted) {
       inQuotes = true;
+      fieldStarted = true;
+      quoteLine = line;
     } else if (ch === ',') {
       cells.push(field);
       field = '';
+      fieldStarted = false;
     } else if (ch === '\r' || ch === '\n') {
       if (ch === '\r' && src[i + 1] === '\n') i++;
       endRecord();
@@ -102,10 +113,14 @@ function readCsv(text: string): CsvRecord[] {
       recordLine = line;
     } else {
       field += ch;
+      fieldStarted = true;
     }
   }
+  if (inQuotes) {
+    return { error: `Missing closing quote for the field starting on line ${quoteLine}.` };
+  }
   endRecord();
-  return records;
+  return { records };
 }
 
 /** Strict amount cell → rounded-up whole units, or `null` (design.md D5). */
@@ -127,12 +142,9 @@ function resolveImportCategory(
 ): Pick<ImportDraftRow, 'category' | 'autoMatchedTerm'> {
   const named = findCategoryByName(rawCategory, categories);
   if (named) return { category: named.id };
-  const auto = applyAutoCategory(
-    { amount: 0, date: '', comment, category: UNCATEGORIZED },
-    categories,
-  );
-  return auto.autoMatchedTerm
-    ? { category: auto.category, autoMatchedTerm: auto.autoMatchedTerm }
+  const match = categorize(comment, categories);
+  return match
+    ? { category: match.categoryId, autoMatchedTerm: match.matchedTerm }
     : { category: UNCATEGORIZED };
 }
 
@@ -145,7 +157,9 @@ export function parseSpendingsCsv(
   text: string,
   categories: readonly Category[],
 ): ParseImportResult {
-  const records = readCsv(text);
+  const read = readCsv(text);
+  if ('error' in read) return { ok: false, error: read.error };
+  const { records } = read;
   if (records.length === 0) return { ok: false, error: 'The file is empty.' };
 
   const [header, ...data] = records;

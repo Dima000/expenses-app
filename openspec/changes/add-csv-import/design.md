@@ -35,7 +35,7 @@ Relevant existing pieces:
 
 1. **Parsing lives in `shared/` as pure functions.** `parseSpendingsCsv(text, categories)` returns either a file-level error or a list of draft rows. It is unit-tested in the existing `node --test` domain suite, which already runs in CI. The web layer only reads the file (`File.text()`) and renders.
 
-2. **A small hand-written CSV reader, no dependency.** It handles RFC 4180 basics: comma separator, double-quoted fields, `""` escapes, commas and newlines inside quotes, CRLF/LF, a leading UTF-8 BOM, and skipping blank lines. A library such as PapaParse would mostly bring dialect detection, which we deliberately don't want.
+2. **A small hand-written CSV reader, no dependency.** It handles RFC 4180 basics: comma separator, double-quoted fields, `""` escapes, commas and newlines inside quotes (a `"` opens a quoted field only at field start, so `55" TV` stays literal; an unterminated quote is a file error), CRLF/LF, a leading UTF-8 BOM, and skipping blank lines. A library such as PapaParse would mostly bring dialect detection, which we deliberately don't want.
 
 3. **The header row is required and matched by name.** Header names are trimmed and case-insensitive, and columns can be in any order. Columns other than `date`, `amount`, `comment` and `category` are ignored. A missing `date` or `amount` header is a file-level error. Rows with more or fewer cells than the header are tolerated: missing cells read as empty and extra cells are ignored. This keeps hand-edited files forgiving.
 

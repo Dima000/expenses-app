@@ -495,6 +495,24 @@ test('csv: quoted fields, escaped quotes, embedded commas and newlines', () => {
   assert.deepEqual(rows.map((r) => r.line), [2, 3, 5]);
 });
 
+test('csv: a quote mid-field is a literal character, not a quoted section', () => {
+  const rows = csvRows('date,amount,comment\n2026-03-02,120,TV 55" stand\n2026-03-03,6,lunch');
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].comment, 'TV 55" stand');
+  assert.equal(rows[1].comment, 'lunch');
+});
+
+test('csv: an unterminated quoted field is a file error naming its line', () => {
+  const r = parseSpendingsCsv('date,amount,comment\n2026-03-02,5,"coffee\n2026-03-03,6,lunch', CATS);
+  assert.equal(r.ok, false);
+  assert.match(r.error, /closing quote.*line 2/);
+});
+
+test('csv: an amount beyond the safe-integer range is a row error', () => {
+  const [row] = csvRows('date,amount\n2026-03-02,99999999999999999999');
+  assert.ok(importRowErrors(row).some((e) => /too large/.test(e)));
+});
+
 test('csv: BOM and blank lines are ignored; extra columns ignored', () => {
   const rows = csvRows('\uFEFFdate,amount,notes\n\n2026-03-02,1,zzz\n  \n2026-03-03,2\n\n');
   assert.equal(rows.length, 2);
