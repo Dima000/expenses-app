@@ -12,6 +12,7 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
   type Timestamp,
 } from 'firebase/firestore';
 import {
@@ -34,7 +35,7 @@ import {
 } from '@expenses/shared';
 import { db } from './firebase';
 import { monthRange } from './date';
-import type { DataSource, Unsubscribe } from './dataSource';
+import type { BulkCreateOptions, DataSource, Unsubscribe } from './dataSource';
 
 /**
  * Firestore-backed `DataSource`. `ownerUid` is fixed at construction (one
@@ -113,6 +114,7 @@ export class FirestoreDataSource implements DataSource {
             category: data.category,
             autoMatchedTerm: data.autoMatchedTerm,
             origAmount: data.origAmount,
+            importId: data.importId,
             needsReview: data.needsReview ?? false,
             ownerUid: data.ownerUid,
             source: data.source,
@@ -180,15 +182,11 @@ export class FirestoreDataSource implements DataSource {
     );
   }
 
-  /**
-   * Create a spending via the client SDK (guarded by Auth + security rules).
-   * This is the shared web/voice write path; round-up + validation run here
-   * exactly as the server's `recordSpending()` does.
-   */
-  async createSpending(input: SpendingInput, source: SpendingSource): Promise<string> {
+  /** The Firestore fields for a new spending — shared by single and bulk create. */
+  private newSpendingDoc(input: SpendingInput, source: SpendingSource, importId?: string) {
     const rounded = roundUpAmount(Number(input.amount));
     const valid = assertValidSpending({ ...input, amount: rounded as number });
-    const ref = await addDoc(this.col(), {
+    return {
       amount: valid.amount,
       date: valid.date,
       comment: valid.comment,
@@ -200,9 +198,33 @@ export class FirestoreDataSource implements DataSource {
       needsReview: valid.needsReview ?? false,
       ownerUid: this.ownerUid,
       source,
+      // Only present on CSV-imported records (add-csv-import D10).
+      ...(importId ? { importId } : {}),
       createdAt: serverTimestamp(),
-    });
+    };
+  }
+
+  /**
+   * Create a spending via the client SDK (guarded by Auth + security rules).
+   * This is the shared web/voice write path; round-up + validation run here
+   * exactly as the server's `recordSpending()` does.
+   */
+  async createSpending(input: SpendingInput, source: SpendingSource): Promise<string> {
+    const ref = await addDoc(this.col(), this.newSpendingDoc(input, source));
     return ref.id;
+  }
+
+  /**
+   * Bulk create in ONE `writeBatch` (add-csv-import D9): every input is built
+   * and validated before anything is queued, so one bad input throws with
+   * nothing written, and the commit itself is atomic. Callers cap the size at
+   * the batch limit (`MAX_IMPORT_ROWS`).
+   */
+  async createSpendings(inputs: SpendingInput[], { source, importId }: BulkCreateOptions): Promise<void> {
+    const docs = inputs.map((input) => this.newSpendingDoc(input, source, importId));
+    const batch = writeBatch(db);
+    for (const data of docs) batch.set(doc(this.col()), data);
+    await batch.commit();
   }
 
   /** Update the mutable fields of an existing spending after validation. */

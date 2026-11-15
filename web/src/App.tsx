@@ -5,7 +5,7 @@ import {
   type Spending,
   type SpendingSource,
 } from '@expenses/shared';
-import { BarChart3, LogOut, Plus, Tags } from 'lucide-react';
+import { BarChart3, FileUp, LogOut, Plus, Tags } from 'lucide-react';
 import {
   BrowserRouter,
   Navigate,
@@ -36,6 +36,7 @@ import { SpendingTable } from '@/components/SpendingTable';
 import { SpendingForm } from '@/components/SpendingForm';
 import { CategoriesPage } from '@/components/CategoriesPage';
 import { ReportsPage } from '@/components/ReportsPage';
+import { ImportPage } from '@/components/ImportPage';
 import { CategoryDrilldownPage } from '@/components/CategoryDrilldownPage';
 import { DemoBanner } from '@/components/DemoBanner';
 import { VoiceButton, type VoiceCapture } from '@/components/VoiceButton';
@@ -220,6 +221,10 @@ function AppShell() {
         element={<ReportsRoute base={base} categories={categories} />}
       />
       <Route
+        path="import"
+        element={<ImportRoute base={base} categories={categories} />}
+      />
+      <Route
         path="reports/:categoryId"
         element={<CategoryDrilldownRoute base={base} categories={categories} />}
       />
@@ -301,6 +306,14 @@ function Dashboard({
             onClick={() => navigate(withBase(base, '/reports'))}
           >
             <BarChart3 />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Import CSV"
+            onClick={() => navigate(withBase(base, '/import'))}
+          >
+            <FileUp />
           </Button>
           <Button
             variant="ghost"
@@ -402,6 +415,21 @@ function CategoriesRoute({ base, categories }: CategoriesRouteProps) {
   const navigate = useNavigate();
   return (
     <CategoriesPage
+      categories={categories}
+      onClose={() => navigate(withBase(base, '/'))}
+    />
+  );
+}
+
+interface ImportRouteProps {
+  base: string;
+  categories: Category[];
+}
+
+function ImportRoute({ base, categories }: ImportRouteProps) {
+  const navigate = useNavigate();
+  return (
+    <ImportPage
       categories={categories}
       onClose={() => navigate(withBase(base, '/'))}
     />

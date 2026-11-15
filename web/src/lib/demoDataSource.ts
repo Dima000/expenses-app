@@ -15,7 +15,7 @@ import {
 } from '@expenses/shared';
 import { buildDemoCategories, DEMO_OWNER_UID, generateDemoSpendings } from './demoSeedData';
 import { monthRange } from './date';
-import type { DataSource, Unsubscribe } from './dataSource';
+import type { BulkCreateOptions, DataSource, Unsubscribe } from './dataSource';
 
 interface SpendingListener {
   matches(spending: Spending): boolean;
@@ -99,22 +99,32 @@ export class DemoDataSource implements DataSource {
     return () => this.categoryListeners.delete(onData);
   }
 
-  async createSpending(input: SpendingInput, source: SpendingSource): Promise<string> {
+  /** A validated in-memory record for a new spending — shared by single and bulk create. */
+  private newSpending(input: SpendingInput, source: SpendingSource, importId?: string): Spending {
     const rounded = roundUpAmount(Number(input.amount));
     const valid = assertValidSpending({ ...input, amount: rounded as number });
-    const id = `demo-created-${this.nextCreatedId++}`;
-    this.spendings = [
-      ...this.spendings,
-      {
-        ...valid,
-        id,
-        ownerUid: DEMO_OWNER_UID,
-        source,
-        createdAtMs: Date.now(),
-      },
-    ];
+    return {
+      ...valid,
+      id: `demo-created-${this.nextCreatedId++}`,
+      ownerUid: DEMO_OWNER_UID,
+      source,
+      createdAtMs: Date.now(),
+      ...(importId ? { importId } : {}),
+    };
+  }
+
+  async createSpending(input: SpendingInput, source: SpendingSource): Promise<string> {
+    const created = this.newSpending(input, source);
+    this.spendings = [...this.spendings, created];
     this.notifyAllSpendingListeners();
-    return id;
+    return created.id;
+  }
+
+  /** All-or-nothing like the Firestore batch: build (and validate) every record before storing any. */
+  async createSpendings(inputs: SpendingInput[], { source, importId }: BulkCreateOptions): Promise<void> {
+    const created = inputs.map((input) => this.newSpending(input, source, importId));
+    this.spendings = [...this.spendings, ...created];
+    this.notifyAllSpendingListeners();
   }
 
   async updateSpending(id: string, input: SpendingInput): Promise<void> {

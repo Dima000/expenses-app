@@ -119,6 +119,52 @@ describe('DemoDataSource', () => {
       await flush();
       expect(rows.some((r) => r.id === id)).toBe(false);
     });
+
+    it('createSpendings stores every input with the shared importId and source', async () => {
+      const ds = new DemoDataSource(TODAY);
+      let rows: Spending[] = [];
+      ds.subscribeToRange('2026-08-01', '2026-09-01', (r) => {
+        rows = r;
+      });
+      await flush();
+      const before = rows.length;
+
+      await ds.createSpendings(
+        [
+          { amount: 12.3, date: '2026-08-20', comment: 'a', category: UNCATEGORIZED },
+          { amount: 5, date: '2026-08-21', comment: 'b', category: 'groceries' },
+        ],
+        { source: 'web', importId: 'imp-1' },
+      );
+      await flush();
+      const imported = rows.filter((r) => r.importId === 'imp-1');
+      expect(rows.length).toBe(before + 2);
+      expect(imported.map((r) => r.amount).sort()).toEqual([13, 5].sort());
+      expect(imported.every((r) => r.source === 'web')).toBe(true);
+    });
+
+    it('createSpendings stores nothing when any input is invalid', async () => {
+      const ds = new DemoDataSource(TODAY);
+      let rows: Spending[] = [];
+      ds.subscribeToRange('2026-08-01', '2026-09-01', (r) => {
+        rows = r;
+      });
+      await flush();
+      const before = rows.length;
+
+      await expect(
+        ds.createSpendings(
+          [
+            { amount: 5, date: '2026-08-20', comment: 'ok', category: UNCATEGORIZED },
+            { amount: 5, date: 'not-a-date', comment: 'bad', category: UNCATEGORIZED },
+          ],
+          { source: 'web', importId: 'imp-2' },
+        ),
+      ).rejects.toThrow();
+      await flush();
+      expect(rows.length).toBe(before);
+      expect(rows.some((r) => r.importId === 'imp-2')).toBe(false);
+    });
   });
 
   describe('category writes', () => {
